@@ -46,7 +46,8 @@ ok(c.status === 201 && c.data.expiryDate === '2026-12-31' && c.data.status === '
 ok(c.data.securityDeposit === '210.500' && c.data.noticeMonths === 1 && Number(c.data.vatRate) === 0, 'deposit defaults to 1 month, residential: 1 month notice, no VAT');
 ok((await call('POST', '/contracts', pmTok, { tenantId: t.data.id, unitId, startDate: '2026-06-01', monthlyRent: '200' })).status === 409, 'overlapping contract on same unit rejected');
 const units2 = (await call('GET', '/units?buildingId=' + B1.id, pmTok)).data; ok(units2.find((x) => x.id === unitId).status === 'Occupied', 'unit shows Occupied with tenant');
-const exp = (await call('GET', '/contracts?expiringWithinDays=90', pmTok)).data; ok(exp.some((x) => x.id === c.data.id), 'contract appears in expiring-within-90-days');
+const exp = (await call('GET', '/contracts?expiringWithinDays=90', pmTok)).data; const ex = exp.find((x) => x.id === c.data.id); ok(!!ex, 'contract appears in expiring-within-90-days');
+ok(ex && ex.expiryDate === '2026-12-31' && Number.isInteger(ex.daysToExpiry), 'list dates are exact (no time-zone shift) and days-to-expiry is a number');
 ok((await call('POST', `/contracts/${c.data.id}/e-status`, pmTok, { step: 'Registered' })).status === 409, 'e-contract steps cannot be skipped');
 for (const step of ['Sent to tenant', 'Tenant accepted', 'Landlord approved']) await call('POST', `/contracts/${c.data.id}/e-status`, pmTok, { step });
 ok((await call('POST', `/contracts/${c.data.id}/e-status`, pmTok, { step: 'Registered' })).status === 400, 'registration needs a number');
