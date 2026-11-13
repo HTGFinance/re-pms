@@ -1,0 +1,49 @@
+{
+  "name": "@re-pms/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RE-PMS API (NestJS + TypeORM + PostgreSQL)",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
+    "migration:generate": "npm run typeorm -- migration:generate",
+    "migration:run": "npm run typeorm -- migration:run",
+    "migration:run:prod": "typeorm -d dist/database/data-source.js migration:run",
+    "seed": "ts-node --transpile-only src/database/seed.ts",
+    "seed:prod": "node dist/database/seed.js",
+    "test:e2e": "node test/e2e.mjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.4.22",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.22",
+    "@nestjs/jwt": "^10.2.0",
+    "@nestjs/platform-express": "^10.4.22",
+    "@nestjs/typeorm": "^10.0.2",
+    "bcryptjs": "^2.4.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.4",
+    "cookie-parser": "^1.4.7",
+    "exceljs": "^4.4.0",
+    "helmet": "^7.2.0",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.20"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.10",
+    "@types/express": "^4.17.25",
+    "@types/multer": "^1.4.13",
+    "@types/node": "^20.19.43",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
