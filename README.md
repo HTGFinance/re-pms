@@ -26,7 +26,8 @@ Omani Rial with 3 decimals (baisa). Designed to connect to Odoo later.
 | **Phase 2:** post-dated cheque register (deposit, clear, bounce, replace), rent recovery page (schedule, arrears, verification queue) | Done |
 | **Phase 3:** tenant app (phone): balance, pay by bank transfer with receipt, statement, contract e-acceptance, notice to vacate, alerts | Done |
 | **Phase 3:** complaints: tenant submits maintenance / service / flat complaints with photos, tracks status, confirms or reopens; staff Complaints page (assign, status, notes, photos); notices to vacate | Done |
-| Phase 4 — maintenance app · Phase 5 — executive dashboard (budget vs actual, periods) · Phase 6 — payment gateway, SMS/WhatsApp, Odoo | Planned |
+| **Phase 4:** maintenance costs (material, labour, contractor, other; who pays), approvals, recoverable charges to tenants, maintenance dashboard, technician performance, history by building/unit, Excel monthly report, technician phone app | Done |
+| Phase 5 — executive dashboard (budget vs actual, periods) · Phase 6 — payment gateway, SMS/WhatsApp, Odoo | Planned |
 
 The clickable prototype that defines the target screens is published separately (see project notes).
 
@@ -36,10 +37,10 @@ The clickable prototype that defines the target screens is published separately 
 |---|---|---|
 | Administrator | Everything, including users and audit log | All |
 | Property manager | Buildings, units, tenants, contracts, tenant/unit imports | Assigned (none = all) |
-| Finance | Verify/reject payments, clear/bounce cheques, credit notes, run billing, budget and payment imports | All |
+| Finance | Approve maintenance costs, verify/reject payments, clear/bounce cheques, credit notes, run billing, budget and payment imports | All |
 | Rent recovery | Record payments (pending), receive and deposit cheques, arrears follow-up | Assigned |
 | Maintenance supervisor | All complaints in their buildings: assign, prioritise, update, close | Assigned |
-| Technician | Only jobs assigned to them: start, awaiting materials, complete, photos, notes | Assigned |
+| Technician | Technician app (`/m`), only jobs assigned to them: start, awaiting materials, complete, photos, notes, costs | Assigned |
 | Executive | View only | All |
 | Tenant | Tenant app only, own data: account, payments, complaints, contract, notice | — |
 
@@ -102,10 +103,11 @@ npm run dev                       # http://localhost:4000/api
 cd apps/web && npm install && npm run dev    # http://localhost:3000
 ```
 
-Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 118 end-to-end checks: phase 1 (login, permissions,
+Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 151 end-to-end checks: phase 1 (login, permissions,
 building scope, contracts, e-contract workflow, registration fee, renewal, Excel import, audit log) and phase 2 (billing, VAT,
 ledger allocation and ageing, maker-checker, credit notes, cheques, recovery reports) and phase 3 (tenant logins and isolation,
-complaints workflow, photo uploads, transfers with receipts, contract acceptance, notices).
+complaints workflow, photo uploads, transfers with receipts, contract acceptance, notices) and phase 4 (costs, approval rules,
+recoverable charges, dashboard figures, history, Excel report).
 
 ### Changing the database
 
@@ -130,11 +132,13 @@ apps/api/src
   common/money.ts           OMR arithmetic in integer baisa (no rounding errors)
   common/dates.ts           Oman dates, Excel date parsing (dd/mm/yyyy)
   modules/<area>/           one folder per area: auth, users, properties, tenants, contracts, imports, dashboard, audit,
-                            billing (invoices + ledger engine), payments, cheques, recovery, complaints, me (tenant app)
+                            billing (invoices + ledger engine), payments, cheques, recovery, complaints, me (tenant app),
+                            maintenance (costs, approvals, dashboard, report)
 apps/web
   app/login                 sign-in page
   app/(portal)/...          staff pages (dashboard, properties, tenants, contracts, complaints, notices, recovery, cheques, imports, users, audit)
   app/t/...                 tenant app (home, pay, complaints, my flat, alerts)
+  app/m/...                 technician app (my jobs, job detail)
   app/password              choose / change password
   components/               layout (Shell) and shared UI pieces
   lib/api.ts                API client and formatting helpers
@@ -158,6 +162,14 @@ apps/web
 - **Technicians** see only jobs assigned to them. Phase 4 adds cost recording, technician performance and the maintenance dashboard.
 - **Uploads** (photos, receipts) are checked by content, limited to 10 MB, stored in `UPLOAD_DIR` (a Docker volume — include it in backups) and can be opened only by people allowed to see the record.
 - **Notice to vacate.** The tenant picks a leaving date; the system works out the notice period and the date rent runs to (the later of the two). Staff record inspection and key handover dates; the tenant is notified at each step.
+
+## Maintenance costs and reporting
+
+- **Cost lines.** Each job can have several cost lines: material, labour, external contractor (with the contractor's name), other expenses, date of work and the responsible technician (defaults to the assigned technician). Each line says who bears it: *Company responsibility*, *Tenant responsibility* (tenant paid directly), *Recoverable from tenant*, or *Pending approval* (to be decided).
+- **Approvals.** A cost needs approval by a property manager or finance when the payer is undecided, when it will be charged to the tenant, or when it is above `MAINTENANCE_APPROVAL_LIMIT` (OMR 200). The person who recorded a cost cannot approve it. Approving a *Recoverable* cost adds a charge to the tenant's ledger and notifies the tenant. Approved costs are locked; rejected ones are excluded from spending.
+- **Maintenance dashboard** (any date range, any building): complaints received, new, open, in progress, awaiting tenant, overdue, average resolution time, tenant rating, reopened; spending vs the maintenance budget, split by who pays and by cost type; 12-month trend; building-wise cost and cost per unit; complaints by category; technician performance (completed, on time %, average days, rating, reopened, cost of jobs). **Excel report** downloads the same for the chosen period (summary, trend, buildings, technicians, jobs, costs).
+- **History** lists every job and its cost for a building or a single unit.
+- **Technician app** (`/m`, for phones): open jobs grouped by overdue / due today / coming up, directions and tap-to-call, start / waiting for materials / completed (a note is required to complete), camera photos, cost entry.
 
 ## Rules built into the system
 
@@ -193,4 +205,6 @@ All routes are under `/api` and need a login except `/health` and `/auth/login`.
 | `GET /notices` · `PATCH /notices/:id` | Notices to vacate (staff) |
 | `GET /files/:id` | Open an uploaded photo or receipt (access checked) |
 | `GET /me` · `/me/ledger` · `/me/payments` (POST with receipt) · `/me/complaints` (POST with photos, `/:id/confirm`, `/reopen`, `/cancel`) · `/me/contracts/:id/accept` · `/me/notices` · `/me/notifications` | Tenant app |
+| `GET/POST /complaints/:id/costs` · `PATCH/DELETE /maintenance-costs/:id` · `GET /maintenance-costs?approval=Pending` · `POST /maintenance-costs/:id/approve` · `/reject` | Maintenance costs and approvals |
+| `GET /maintenance/dashboard?from=&to=&buildingId=` · `/maintenance/history` · `/maintenance/report.xlsx` | Maintenance dashboard, history, Excel report |
 | `GET /dashboard/summary`, `GET /audit` | Summary figures, audit log |

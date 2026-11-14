@@ -9,7 +9,7 @@ export default function ChangePassword() {
   useEffect(() => { api('/auth/me').then(setMe).catch(() => router.replace('/login')); }, [router]);
   const submit = async (e: FormEvent) => { e.preventDefault(); setErr('');
     if (pw !== pw2) { setErr('The two new passwords do not match'); return; } if (pw.length < 10) { setErr('Use at least 10 characters'); return; }
-    setBusy(true); try { await api('/auth/change-password', { body: { currentPassword: cur, newPassword: pw } }); router.replace(me?.role === 'TENANT' ? '/t' : '/'); } catch (x: any) { setErr(x.message); setBusy(false); } };
+    setBusy(true); try { await api('/auth/change-password', { body: { currentPassword: cur, newPassword: pw } }); router.replace(me?.role === 'TENANT' ? '/t' : me?.role === 'TECHNICIAN' ? '/m' : '/'); } catch (x: any) { setErr(x.message); setBusy(false); } };
   return <div className="login"><form className="box" onSubmit={submit}>
     <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--navy)' }}>Choose your password</div>
     <div className="muted small" style={{ marginBottom: 16 }}>{me?.mustChangePassword ? 'For your security, replace the temporary password you were given.' : 'Change your password.'}</div>

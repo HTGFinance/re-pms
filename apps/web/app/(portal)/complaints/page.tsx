@@ -4,6 +4,7 @@ import { FormEvent, useMemo, useRef, useState } from 'react';
 import { Header, useMe } from '@/components/Shell';
 import { Err, Field, Kpi, Modal, useLoad } from '@/components/ui';
 import { api, can, fmtDate, mapUrl } from '@/lib/api';
+import { CostsPanel } from '@/components/costs';
 
 const PRI: Record<string, string> = { Urgent: 'p-red', High: 'p-amber', Medium: 'p-blue', Low: 'p-gray' };
 const ST: Record<string, string> = { New: 'p-blue', Reviewed: 'p-purple', 'Technician assigned': 'p-purple', 'Work in progress': 'p-amber', 'Awaiting materials / approval': 'p-amber', 'Tenant confirmation pending': 'p-green', Closed: 'p-gray', Cancelled: 'p-gray' };
@@ -42,6 +43,7 @@ export default function Complaints() {
 }
 
 function Detail({ id, manager, onClose, onChanged }: { id: string; manager: boolean; onClose: () => void; onChanged: () => void }) {
+  const me = useMe();
   const D = useLoad(() => api(`/complaints/${id}`), [id]); const A = useLoad(() => manager ? api<any[]>('/complaints/assignees') : Promise.resolve([]));
   const [err, setErr] = useState(''); const [note, setNote] = useState(''); const [internal, setInternal] = useState(false); const [kind, setKind] = useState('after'); const file = useRef<HTMLInputElement>(null);
   const c = D.data; const done = () => { D.reload(); onChanged(); };
@@ -74,6 +76,7 @@ function Detail({ id, manager, onClose, onChanged }: { id: string; manager: bool
     </div>}
     <div className="row" style={{ marginTop: 14 }}><select style={{ width: 'auto' }} value={kind} onChange={(e) => setKind(e.target.value)}><option value="before">Before photo</option><option value="after">After photo</option><option value="internal">Internal file</option></select>
       <input ref={file} type="file" accept="image/*,application/pdf" multiple style={{ maxWidth: 260 }} /><button onClick={upload}>Upload</button></div>
+    {c.status !== 'Cancelled' && <div className="card" style={{ marginTop: 14, padding: 12 }}><CostsPanel complaintId={id} hasTenant={!!c.tenant} canAdd={can(me, 'MAINTENANCE_SUPERVISOR', 'PROPERTY_MANAGER', 'TECHNICIAN')} meId={me?.role === 'TECHNICIAN' ? me.id : undefined} /></div>}
     <div className="sec">Timeline</div>
     <div className="timeline">{c.timeline.map((e: any, i: number) => <div key={i} className="ev"><b>{e.status}</b> <span className="small muted">· {when(e.at)} · {e.by}{!e.visibleToTenant && ' · internal'}</span>{e.note && <div className="small">{e.note}</div>}</div>)}</div>
     {c.tenantFeedback && <div className="note">Tenant feedback: {c.tenantFeedback}</div>}

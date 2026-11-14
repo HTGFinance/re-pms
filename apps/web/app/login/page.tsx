@@ -8,7 +8,7 @@ export default function Login() {
   const router = useRouter();
   const submit = async (e: FormEvent) => {
     e.preventDefault(); setBusy(true); setErr('');
-    try { const r = await api('/auth/login', { body: { email, password } }); router.replace(r.user.mustChangePassword ? '/password' : r.user.role === 'TENANT' ? '/t' : '/'); } catch (x: any) { setErr(x.message); setBusy(false); }
+    try { const r = await api('/auth/login', { body: { email, password } }); router.replace(r.user.mustChangePassword ? '/password' : r.user.role === 'TENANT' ? '/t' : r.user.role === 'TECHNICIAN' ? '/m' : '/'); } catch (x: any) { setErr(x.message); setBusy(false); }
   };
   return <div className="login"><form className="box" onSubmit={submit}>
     <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--navy)' }}>RE-PMS</div>
