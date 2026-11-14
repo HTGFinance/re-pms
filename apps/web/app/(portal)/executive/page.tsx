@@ -24,7 +24,8 @@ function rangeFor(mode: Mode, month: string, quarter: string, year: string, cust
 export default function Executive() {
   const t = today(); const thisY = Number(t.slice(0, 4));
   const [mode, setMode] = useState<Mode>('ytd'); const [month, setMonth] = useState(t.slice(0, 7)); const [quarter, setQuarter] = useState(`${thisY}-Q${Math.floor((Number(t.slice(5, 7)) - 1) / 3) + 1}`);
-  const [year, setYear] = useState(String(thisY)); const [custom, setCustom] = useState<[string, string]>([`${thisY}-01-01`, t]); const [bid, setBid] = useState('');
+  const [year, setYear] = useState(String(thisY)); const [custom, setCustom] = useState<[string, string]>([`${thisY}-01-01`, t]); const [bid, setBid] = useState(''); const [view, setViewS] = useState<'summary' | 'charts'>(() => (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('view') === 'charts' ? 'charts' : 'summary'));
+  const setView = (v: 'summary' | 'charts') => { setViewS(v); try { const u = new URL(window.location.href); if (v === 'charts') u.searchParams.set('view', 'charts'); else u.searchParams.delete('view'); window.history.replaceState(null, '', u.toString()); } catch {} };
   const [from, to, label] = rangeFor(mode, month, quarter, year, custom);
   const qs = `from=${from}&to=${to}${bid ? '&buildingId=' + bid : ''}`;
   const D = useLoad(() => api(`/executive/dashboard?${qs}`), [qs]); const B = useLoad(() => api<any[]>('/buildings'));
@@ -34,6 +35,7 @@ export default function Executive() {
   return <>
     <Header title="Executive dashboard" sub="Group portfolio performance, budget vs actual and risks" right={<a className="btn" style={{ textDecoration: 'none' }} href={`/api/executive/report.xlsx?${qs}`}>⬇ Board pack (Excel)</a>} />
     <div id="view">
+      <div className="tabs" style={{ marginBottom: 12 }}>{([['summary', 'Summary'], ['charts', 'Charts']] as const).map(([k, l]) => <button key={k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{l}</button>)}</div>
       <div className="card" style={{ marginBottom: 14 }}><div className="row">
         <b style={{ color: 'var(--navy)' }}>Period</b>
         <div className="seg">{([['month', 'Month'], ['quarter', 'Quarter'], ['year', 'Year'], ['ytd', 'Year to date'], ['custom', 'From – To']] as [Mode, string][]).map(([k, l]) => <button key={k} className={`sm ${mode === k ? 'primary' : ''}`} onClick={() => setMode(k)}>{l}</button>)}</div>
@@ -44,7 +46,7 @@ export default function Executive() {
         <select className="right" style={{ width: 'auto' }} value={bid} onChange={(e) => setBid(e.target.value)}><option value="">All buildings</option>{B.data?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
       </div><div className="small muted" style={{ marginTop: 6 }}><b>{label}</b> · {fmtDate(from)} – {fmtDate(to)}{to > t ? ` · actuals and budget to ${fmtDate(t)}` : ''}</div></div>
       <Err msg={D.error} />
-      {d && <Body d={d} label={label} />}
+      {d && (view === 'charts' ? <Charts d={d} label={label} /> : <Body d={d} label={label} />)}
     </div>
   </>;
 }
@@ -77,21 +79,18 @@ function Body({ d, label }: { d: any; label: string }) {
       <tbody>{[['Rental income (excl. VAT)', bv.rentalIncome], ['Collections (cash received)', bv.collections], ['Maintenance cost', bv.maintenance], ['Net operating income', bv.noi]].map(([l, v]: any) =>
         <tr key={l}><td>{l}</td><td className="n">{num3(v.budget)}</td><td className="n">{num3(v.actual)}</td><td className="n"><Var x={v} /></td><td>{v.favourable === null ? '' : v.favourable ? <span className="pill p-green">Favourable</span> : <span className="pill p-red">Adverse</span>}</td></tr>)}</tbody></table>
       <div className="small muted" style={{ marginTop: 8 }}>{noBudget ? <>No budget found for this period — import one under <Link href="/imports">Data import</Link>. </> : null}Budgets are monthly by building, pro-rated by days and counted only up to today. For maintenance, below budget is favourable.</div></div>
-    <div className="grid c2" style={{ marginTop: 14 }}>
-      <div className="card"><h3>Rental income: actual vs budget</h3><BarChart labels={L} series={[{ name: 'Actual rent (excl. VAT)', values: d.monthly.map((m: any) => Number(m.rent)) }]} line={{ name: 'Budget', values: d.monthly.map((m: any) => Number(m.budgetRent)) }} /></div>
-      <div className="card"><h3>Collections: cash received vs budget</h3><BarChart labels={L} series={[{ name: 'Cash received', values: d.monthly.map((m: any) => Number(m.cash)), color: '#2a9d8f' }]} line={{ name: 'Collection budget', values: d.monthly.map((m: any) => Number(m.budgetCollection)) }} /></div>
-      <div className="card"><h3>Billed vs collected against billing</h3><BarChart labels={L} series={[{ name: 'Billed incl. VAT', values: d.monthly.map((m: any) => Number(m.billed)) }, { name: 'Collected', values: d.monthly.map((m: any) => Number(m.collected)), color: '#2a9d8f' }]} /></div>
-      <div className="card"><h3>Maintenance: actual vs budget</h3><BarChart labels={L} series={[{ name: 'Maintenance', values: d.monthly.map((m: any) => Number(m.maintenance)), color: '#e76f51' }]} line={{ name: 'Budget', values: d.monthly.map((m: any) => Number(m.budgetMaintenance)) }} /></div>
-      <div className="card"><h3>Outstanding rent by age (today)</h3><HBars unit="OMR " items={[['Not yet overdue', td.aging.notDue, '#94a3b8'], ['1–30 days', td.aging.d0_30, '#2a9d8f'], ['31–60 days', td.aging.d31_60, '#e9b949'], ['61–90 days', td.aging.d61_90, '#e76f51'], ['Over 90 days', td.aging.d90plus, '#c0392b']].map(([l, v, c]) => ({ label: l, value: Number(v), color: c }))} />
-        <div className="small muted">Total {omr(td.outstanding)} · {td.tenantsInArrears} tenant(s) in arrears · <Link href="/recovery">Rent recovery →</Link></div></div>
-      <div className="card"><h3>Occupancy by building at {fmtDate(d.period.asAt)}</h3><HBars items={d.buildings.map((b: any) => ({ label: `${b.name} (${b.occupied}/${b.units})`, value: b.occupancy, color: b.occupancy >= 90 ? '#2a9d8f' : b.occupancy >= 60 ? '#e9b949' : '#e76f51' }))} suffix="%" max={100} share={false} /><div className="small muted">% of units occupied.</div></div>
-    </div>
     <div className="sec">Building performance — {label}</div>
     <div className="card tw"><table><thead><tr><th>Building</th><th className="n">Occupancy</th><th className="n">Rent budget</th><th className="n">Rent actual</th><th className="n">Variance</th><th className="n">Collection %</th><th className="n">Cash</th><th className="n">Maint. budget</th><th className="n">Maint. actual</th><th className="n">NOI</th><th className="n">Vacancy loss</th></tr></thead>
       <tbody>{d.buildings.map((b: any) => <tr key={b.id}><td style={{ minWidth: 170 }}><b>{b.name}</b><div className="small muted">{b.type}{b.location ? ' · ' + b.location : ''}</div></td><td className="n">{b.occupied}/{b.units} ({b.occupancy}%)</td>
         <td className="n">{num3(b.budgetVsActual.rentalIncome.budget)}</td><td className="n">{num3(b.rentBilled)}</td><td className="n"><Var x={b.budgetVsActual.rentalIncome} /></td><td className="n">{b.collectionRate == null ? '—' : b.collectionRate + '%'}</td><td className="n">{num3(b.cashReceived)}</td>
         <td className="n">{num3(b.budgetVsActual.maintenance.budget)}</td><td className="n">{num3(b.maintenance)}</td><td className="n">{num3(b.noi)}</td><td className="n">{num3(b.vacancyLoss)}</td></tr>)}
         {d.buildings.length > 1 && <tr className="tot"><td>Total</td><td className="n">{x.occupied}/{x.units} ({x.occupancy}%)</td><td className="n">{num3(bv.rentalIncome.budget)}</td><td className="n">{num3(x.rentBilled)}</td><td className="n"><Var x={bv.rentalIncome} /></td><td className="n">{x.collectionRate == null ? '—' : x.collectionRate + '%'}</td><td className="n">{num3(x.cashReceived)}</td><td className="n">{num3(bv.maintenance.budget)}</td><td className="n">{num3(x.maintenance)}</td><td className="n">{num3(x.noi)}</td><td className="n">{num3(x.vacancyLoss)}</td></tr>}</tbody></table></div>
+    <div className="sec">Outstanding rent by age (today)</div>
+    <div className="card tw"><table><thead><tr><th>Age</th><th className="n">Amount (OMR)</th><th className="n">Share</th></tr></thead>
+      <tbody>{[['Not yet overdue', td.aging.notDue], ['1–30 days overdue', td.aging.d0_30], ['31–60 days overdue', td.aging.d31_60], ['61–90 days overdue', td.aging.d61_90], ['Over 90 days overdue', td.aging.d90plus]].map(([l, v]) =>
+        <tr key={l}><td>{l}</td><td className="n">{num3(v)}</td><td className="n">{Number(td.outstanding) ? Math.round((Number(v) / Number(td.outstanding)) * 1000) / 10 + '%' : '—'}</td></tr>)}
+        <tr className="tot"><td>Total outstanding</td><td className="n">{num3(td.outstanding)}</td><td className="n">{td.tenantsInArrears} tenant(s) in arrears</td></tr></tbody></table>
+      <div className="small muted" style={{ marginTop: 8 }}><Link href="/recovery">Rent recovery →</Link></div></div>
     <div className="sec">Risks and actions (today)</div>
     <div className="grid k4">
       <Kpi label="Monthly rent roll" value={omr(td.monthlyRentRoll)} sub="Active contracts, incl. VAT" />
@@ -105,5 +104,22 @@ function Body({ d, label }: { d: any; label: string }) {
       <Kpi label="Open complaints" value={td.openComplaints} sub={`${td.overdueComplaints} overdue · ${td.costsAwaitingApproval} cost(s) to approve`} tone={td.overdueComplaints ? 'warn' : undefined} />
       <Kpi label="Tenants leaving (open notices)" value={td.openNotices} sub={<Link href="/notices">Notices →</Link>} />
     </div>
+  </>;
+}
+
+function Charts({ d, label }: { d: any; label: string }) {
+  const td = d.today; const L = d.monthly.map((m: any) => mShort(m.month));
+  return <>
+    <div className="sec" style={{ marginTop: 0 }}>Charts — {label}</div>
+    <div className="grid c2">
+      <div className="card"><h3>Rental income: actual vs budget</h3><BarChart labels={L} series={[{ name: 'Actual rent (excl. VAT)', values: d.monthly.map((m: any) => Number(m.rent)) }]} line={{ name: 'Budget', values: d.monthly.map((m: any) => Number(m.budgetRent)) }} /></div>
+      <div className="card"><h3>Collections: cash received vs budget</h3><BarChart labels={L} series={[{ name: 'Cash received', values: d.monthly.map((m: any) => Number(m.cash)), color: '#2a9d8f' }]} line={{ name: 'Collection budget', values: d.monthly.map((m: any) => Number(m.budgetCollection)) }} /></div>
+      <div className="card"><h3>Billed vs collected against billing</h3><BarChart labels={L} series={[{ name: 'Billed incl. VAT', values: d.monthly.map((m: any) => Number(m.billed)) }, { name: 'Collected', values: d.monthly.map((m: any) => Number(m.collected)), color: '#2a9d8f' }]} /></div>
+      <div className="card"><h3>Maintenance: actual vs budget</h3><BarChart labels={L} series={[{ name: 'Maintenance', values: d.monthly.map((m: any) => Number(m.maintenance)), color: '#e76f51' }]} line={{ name: 'Budget', values: d.monthly.map((m: any) => Number(m.budgetMaintenance)) }} /></div>
+      <div className="card"><h3>Outstanding rent by age (today)</h3><HBars unit="OMR " items={[['Not yet overdue', td.aging.notDue, '#94a3b8'], ['1–30 days', td.aging.d0_30, '#2a9d8f'], ['31–60 days', td.aging.d31_60, '#e9b949'], ['61–90 days', td.aging.d61_90, '#e76f51'], ['Over 90 days', td.aging.d90plus, '#c0392b']].map(([l, v, c]) => ({ label: l, value: Number(v), color: c }))} />
+        <div className="small muted">Total {omr(td.outstanding)} · {td.tenantsInArrears} tenant(s) in arrears · <Link href="/recovery">Rent recovery →</Link></div></div>
+      <div className="card"><h3>Occupancy by building at {fmtDate(d.period.asAt)}</h3><HBars items={d.buildings.map((b: any) => ({ label: `${b.name} (${b.occupied}/${b.units})`, value: b.occupancy, color: b.occupancy >= 90 ? '#2a9d8f' : b.occupancy >= 60 ? '#e9b949' : '#e76f51' }))} suffix="%" max={100} share={false} /><div className="small muted">% of units occupied.</div></div>
+    </div>
+    <div className="small muted" style={{ marginTop: 8 }}>The budget line for the current month counts days up to today only, so it drops in the last bar.</div>
   </>;
 }

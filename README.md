@@ -176,6 +176,7 @@ apps/web
 ## Executive dashboard
 
 - **Who sees it:** executives (it is their landing page), finance and property managers. Property managers see only their buildings.
+- **Two tabs, same filters:** *Summary* has figures and tables only (KPIs, budget vs actual, ageing table, building performance, risks); *Charts* has all graphs together (rent, collections, billed vs collected, maintenance, ageing, occupancy). `/executive?view=charts` opens the Charts tab directly.
 - **Periods:** month, quarter, year, year to date, or any from–to range, for all buildings or one. A *year to date at a glance* row is always shown.
 - **Figures for the period:** rent billed (excl. VAT) and VAT; *collected against billing* (how much of the period's invoices has been paid, by FIFO allocation) and the collection rate; cash received (verified payments by payment date); maintenance (approved and not-needing-approval costs, excluding tenant-paid); NOI = rent billed − maintenance; occupancy at the period end (or today); vacancy loss = listed rent of empty units for the days they were empty.
 - **Budget vs actual:** budgets are imported monthly per building (Data import → Budget). A part month counts its days only, and days after today are never counted, so a year view in November compares like with like. Rent, collections and NOI are favourable at or above budget; maintenance at or below budget.
