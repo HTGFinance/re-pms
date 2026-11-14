@@ -111,6 +111,13 @@ complaints workflow, photo uploads, transfers with receipts, contract acceptance
 recoverable charges, dashboard figures, history, Excel report) and phase 5 (executive figures, budget vs actual and
 pro-rating, year to date, building split, board pack). Seed with `SEED_DEMO=true` before running them.
 
+### Demo data for sales demos
+
+On an empty demo database (migrated, seeded with `SEED_DEMO=true`, API running): `cd apps/api && node scripts/demo-data.mjs`.
+It loads 4 buildings / 94 units / ~85 tenants with a year of rent, payments, cheques, complaints, maintenance costs and a budget,
+and creates demo logins `ceo@demo.om`, `finance@demo.om`, `pm@demo.om`, `maintenance@demo.om`, `tenant@demo.om` (password `Demo!Pass2026`).
+Never run it on a live database.
+
 ### Changing the database
 
 Edit `apps/api/src/database/entities.ts`, then generate and commit a migration:
