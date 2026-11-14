@@ -10,7 +10,7 @@ Omani Rial with 3 decimals (baisa). Designed to connect to Odoo later.
 | Web portal (staff screens) | Next.js 16 · React 19 | `apps/web` |
 | Deployment | Docker Compose (db + api + web) | `docker-compose.yml` |
 
-## Build status — Phase 1 (foundation)
+## Build status
 
 | Area | Status |
 |---|---|
@@ -21,7 +21,9 @@ Omani Rial with 3 decimals (baisa). Designed to connect to Odoo later.
 | E-contract stages and municipality registration (number, date, fee) | Done |
 | Excel/CSV import with preview: units, tenant master (with opening balance), budget, payments | Done |
 | Admin dashboard summary, users & roles, audit log of every change | Done |
-| Phase 2 — monthly rent billing, tenant ledger, payment verification, cheques (PDC), arrears | Next |
+| **Phase 2:** rent billing by payment frequency (with VAT), tenant ledger and statement, ageing | Done |
+| **Phase 2:** payments with maker-checker verification, receipts, charges and credit notes | Done |
+| **Phase 2:** post-dated cheque register (deposit, clear, bounce, replace), rent recovery page (schedule, arrears, verification queue) | Done |
 | Phase 3 — tenant mobile app · Phase 4 — maintenance app · Phase 5 — executive dashboard (budget vs actual, periods) · Phase 6 — payment gateway, SMS/WhatsApp, Odoo | Planned |
 
 The clickable prototype that defines the target screens is published separately (see project notes).
@@ -32,8 +34,8 @@ The clickable prototype that defines the target screens is published separately 
 |---|---|---|
 | Administrator | Everything, including users and audit log | All |
 | Property manager | Buildings, units, tenants, contracts, tenant/unit imports | Assigned (none = all) |
-| Finance | View all; budget and payment imports (ledgers in phase 2) | All |
-| Rent recovery | View tenants/contracts (collections in phase 2) | Assigned |
+| Finance | Verify/reject payments, clear/bounce cheques, credit notes, run billing, budget and payment imports | All |
+| Rent recovery | Record payments (pending), receive and deposit cheques, arrears follow-up | Assigned |
 | Maintenance supervisor / Technician | View properties (work orders in phase 4) | Assigned |
 | Executive | View only | All |
 | Tenant | Own data only (tenant app in phase 3) | — |
@@ -97,8 +99,9 @@ npm run dev                       # http://localhost:4000/api
 cd apps/web && npm install && npm run dev    # http://localhost:3000
 ```
 
-Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 34 end-to-end checks (login, permissions,
-building scope, contracts, e-contract workflow, registration fee, renewal, Excel import, audit log).
+Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 72 end-to-end checks: phase 1 (login, permissions,
+building scope, contracts, e-contract workflow, registration fee, renewal, Excel import, audit log) and phase 2 (billing, VAT,
+ledger allocation and ageing, maker-checker, credit notes, cheques, recovery reports).
 
 ### Changing the database
 
@@ -122,13 +125,23 @@ apps/api/src
   common/audit.interceptor  writes every change to audit_log (passwords redacted)
   common/money.ts           OMR arithmetic in integer baisa (no rounding errors)
   common/dates.ts           Oman dates, Excel date parsing (dd/mm/yyyy)
-  modules/<area>/           one folder per area: auth, users, properties, tenants, contracts, imports, dashboard, audit
+  modules/<area>/           one folder per area: auth, users, properties, tenants, contracts, imports, dashboard, audit,
+                            billing (invoices + ledger engine), payments, cheques, recovery
 apps/web
   app/login                 sign-in page
-  app/(portal)/...          staff pages (dashboard, properties, tenants, contracts, imports, users, audit)
+  app/(portal)/...          staff pages (dashboard, properties, tenants, contracts, recovery, cheques, imports, users, audit)
   components/               layout (Shell) and shared UI pieces
   lib/api.ts                API client and formatting helpers
 ```
+
+## How billing and collections work
+
+- **Billing.** Rent is billed in advance on the first day of each period (monthly, quarterly, half-yearly or yearly, per contract) from the contract's *bill-from* month until expiry. VAT at 5% is added for commercial units. Billing runs automatically every hour and straight away when a contract is created, activated or imported; finance can also run it from the API.
+- **Bill-from date.** For a contract whose start date is in the past, billing starts in the current month unless an earlier *bill-from* date is entered. Rent owed from before go-live is brought in as the tenant's **Opening Balance** (tenant master import).
+- **Partial months** are billed as whole months (contracts normally start on the 1st).
+- **Ledger.** What a tenant owes = invoices + charges − verified payments − credit notes. Payments always settle the oldest unpaid item first, which gives the per-invoice outstanding amounts and the ageing (1–30, 31–60, 61–90, 90+ days past due date).
+- **Maker-checker.** Recovery staff (or anyone) record a payment as *Pending*; it does not reduce the balance until a **different** finance user verifies it. The recorder can never verify or reject their own entry.
+- **Cheques.** Received cheques sit *In hand* and cannot be deposited before their date. A cheque becomes a payment only when finance marks it *Cleared*; a *Bounced* cheque leaves the rent unpaid, can carry a bounce fee, and is then *Replaced*.
 
 ## Rules built into the system
 
@@ -153,4 +166,9 @@ All routes are under `/api` and need a login except `/health` and `/auth/login`.
 | `GET/POST /contracts`, `GET/PATCH /contracts/:id` | Contracts (`?status=`, `?expiringWithinDays=90`) |
 | `POST /contracts/:id/activate` · `/end` · `/renew` · `/e-status` | Contract actions |
 | `GET /imports/templates/:type` · `POST /imports/:type?commit=true` | Excel templates and import (`units`, `tenants`, `budget`, `payments`) |
+| `POST /billing/run` · `GET /ledger/:tenantId` | Generate rent invoices; tenant statement, open items, ageing |
+| `GET/POST /charges` | Charges and credit notes |
+| `GET/POST /payments` · `POST /payments/:id/verify` · `/reject` · `GET /payments/:id/receipt` | Payments and verification |
+| `GET /cheques` · `POST /cheques/series` · `/:id/deposit` · `/clear` · `/bounce` · `/replace` · `/return` | Cheque register |
+| `GET /recovery/schedule?period=YYYY-MM` · `/recovery/arrears` · `/recovery/summary` | Recovery reports |
 | `GET /dashboard/summary`, `GET /audit` | Summary figures, audit log |

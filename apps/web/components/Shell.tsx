@@ -12,6 +12,8 @@ const NAV: { href: string; label: string; roles?: Role[] }[] = [
   { href: '/properties', label: 'Buildings & units', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'MAINTENANCE_SUPERVISOR', 'EXECUTIVE'] },
   { href: '/tenants', label: 'Tenants', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'MAINTENANCE_SUPERVISOR', 'EXECUTIVE'] },
   { href: '/contracts', label: 'Contracts', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'EXECUTIVE'] },
+  { href: '/recovery', label: 'Rent recovery', roles: ['RECOVERY', 'FINANCE', 'PROPERTY_MANAGER', 'EXECUTIVE'] },
+  { href: '/cheques', label: 'Cheques (PDC)', roles: ['RECOVERY', 'FINANCE', 'PROPERTY_MANAGER', 'EXECUTIVE'] },
   { href: '/imports', label: 'Data import', roles: ['PROPERTY_MANAGER', 'FINANCE'] },
   { href: '/users', label: 'Users & roles', roles: [] },
   { href: '/audit', label: 'Audit log', roles: [] },
