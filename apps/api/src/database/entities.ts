@@ -33,6 +33,9 @@ export enum PaymentMethod { GATEWAY = 'Online gateway', BANK_TRANSFER = 'Bank tr
 export enum ComplaintStatus { NEW = 'New', REVIEWED = 'Reviewed', ASSIGNED = 'Technician assigned', IN_PROGRESS = 'Work in progress', AWAITING = 'Awaiting materials / approval', COMPLETED = 'Work completed', CONFIRMATION = 'Tenant confirmation pending', CLOSED = 'Closed', CANCELLED = 'Cancelled' }
 export enum Priority { LOW = 'Low', MEDIUM = 'Medium', HIGH = 'High', URGENT = 'Urgent' }
 export enum NoticeStatus { SUBMITTED = 'Submitted', ACKNOWLEDGED = 'Acknowledged', INSPECTION_SCHEDULED = 'Inspection scheduled', INSPECTED = 'Inspection done', HANDED_OVER = 'Keys handed over', SETTLED = 'Settled', CANCELLED = 'Cancelled' }
+/** Who bears a maintenance cost (spec section 4D). */
+export enum CostClass { COMPANY = 'Company responsibility', TENANT = 'Tenant responsibility', RECOVERABLE = 'Recoverable from tenant', PENDING = 'Pending approval' }
+export enum ApprovalStatus { NOT_NEEDED = 'Not needed', PENDING = 'Pending', APPROVED = 'Approved', REJECTED = 'Rejected' }
 export enum ChequeStatus { IN_HAND = 'In hand', DEPOSITED = 'Deposited', CLEARED = 'Cleared', BOUNCED = 'Bounced', REPLACED = 'Replaced', RETURNED = 'Returned to tenant', CANCELLED = 'Cancelled' }
 
 @Entity('buildings')
@@ -291,6 +294,35 @@ export class VacateNotice {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
 
+/** Cost lines recorded against a maintenance job. A job can have several (e.g. two visits, materials bought later). */
+@Entity('maintenance_costs')
+export class MaintenanceCost {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Index() @Column({ name: 'complaint_id', type: 'uuid' }) complaintId: string;
+  @Index() @Column({ name: 'building_id', type: 'uuid' }) buildingId: string; // copied from the job for fast reporting
+  @Column({ name: 'unit_id', type: 'uuid', nullable: true }) unitId: string | null;
+  @Column({ name: 'tenant_id', type: 'uuid', nullable: true }) tenantId: string | null;
+  @Index() @Column({ name: 'work_date', type: 'date' }) workDate: string;
+  @Column({ name: 'technician_id', type: 'uuid', nullable: true }) technicianId: string | null; // responsible technician
+  @Column({ ...money }) material: string;
+  @Column({ ...money }) labour: string;
+  @Column({ ...money }) contractor: string;
+  @Column({ name: 'contractor_name', length: 150, default: '' }) contractorName: string;
+  @Column({ ...money }) other: string;
+  @Column({ ...money }) total: string;
+  @Column({ length: 500, default: '' }) description: string;
+  @Column({ type: 'enum', enum: CostClass, default: CostClass.COMPANY }) classification: CostClass;
+  @Index() @Column({ name: 'approval_status', type: 'enum', enum: ApprovalStatus, default: ApprovalStatus.NOT_NEEDED }) approvalStatus: ApprovalStatus;
+  @Column({ name: 'approval_reason', length: 200, default: '' }) approvalReason: string; // why approval is needed
+  @Column({ name: 'recorded_by', type: 'uuid', nullable: true }) recordedBy: string | null;
+  @Column({ name: 'approved_by', type: 'uuid', nullable: true }) approvedBy: string | null;
+  @Column({ name: 'approved_at', type: 'timestamptz', nullable: true }) approvedAt: Date | null;
+  @Column({ name: 'reject_reason', length: 300, default: '' }) rejectReason: string;
+  @Column({ name: 'charge_id', type: 'uuid', nullable: true }) chargeId: string | null; // tenant ledger charge for recoverable costs
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
 @Entity('budgets')
 @Unique('uq_budget_building_period', ['buildingId', 'period'])
 export class Budget {
@@ -342,4 +374,4 @@ export class Counter {
 }
 
 export const ENTITIES = [Building, Unit, Tenant, Contract, Invoice, LedgerCharge, Payment, Cheque, Budget, User, AuditLog, Counter,
-  MaintenanceCategory, Complaint, ComplaintEvent, Attachment, Notification, VacateNotice];
+  MaintenanceCategory, Complaint, ComplaintEvent, Attachment, Notification, VacateNotice, MaintenanceCost];
