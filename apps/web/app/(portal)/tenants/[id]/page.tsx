@@ -19,6 +19,10 @@ export default function TenantDetail() {
   const Q = useLoad(() => showLedger ? api<any[]>(`/cheques?tenantId=${id}`) : Promise.resolve([]), [id]);
   const P = useLoad(() => showLedger ? api<any[]>(`/payments?tenantId=${id}`) : Promise.resolve([]), [id]);
   const reloadMoney = () => { L.reload(); Q.reload(); P.reload(); };
+  const LG = useLoad(() => edit ? api(`/tenants/${id}/login`) : Promise.resolve(null), [id]);
+  const [pwInfo, setPwInfo] = useState<any>(null); const [lgErr, setLgErr] = useState('');
+  const makeLogin = async () => { setLgErr(''); try { setPwInfo(await api(`/tenants/${id}/login`, { body: {} })); LG.reload(); } catch (x: any) { setLgErr(x.message); } };
+  const CP = useLoad(() => can(me, 'MAINTENANCE_SUPERVISOR', 'PROPERTY_MANAGER', 'EXECUTIVE') ? api<any[]>(`/complaints?tenantId=${id}`) : Promise.resolve([]), [id]);
   const t = T.data;
   return <>
     <Header title={t ? t.name : 'Tenant'} sub={t ? `${t.tenantNo} · ${t.status}` : ''} right={<div className="row"><Link className="btn" style={{ textDecoration: 'none' }} href="/tenants">← Tenants</Link>{edit && t && <><button onClick={() => setEditing(true)}>Edit</button><button className="primary" onClick={() => setNewC(true)}>+ Contract</button></>}</div>} />
@@ -36,6 +40,12 @@ export default function TenantDetail() {
           {L.data.pendingPayments.length > 0 && <div className="note" style={{ marginTop: 8 }}>{L.data.pendingPayments.length} payment(s) of {omr(L.data.pendingPayments.reduce((s: number, p: any) => s + Number(p.amount), 0))} awaiting verification — not yet in the balance.</div>}
         </div> : <div className="card"><h3>Account</h3><div className="muted small">Not available for your role.</div></div>}
       </div>}
+      {edit && <div className="card" style={{ marginTop: 14 }}><h3>Tenant app login {LG.data?.exists ? <span className="pill p-green">Active</span> : <span className="pill p-gray">None</span>}</h3><Err msg={lgErr} />
+        {LG.data?.exists ? <div className="small">Login: <b>{LG.data.email}</b> · {LG.data.mustChangePassword ? 'has not signed in yet' : `last sign-in ${fmtDate(LG.data.lastLoginAt)}`}</div> : <div className="small muted">Create a login so the tenant can pay, raise complaints and follow them in the tenant app. Their email address is the login.</div>}
+        {pwInfo && <div className="note" style={{ marginTop: 8 }}>Temporary password for <b>{pwInfo.email}</b>: <b style={{ fontSize: 16, letterSpacing: 1 }}>{pwInfo.temporaryPassword}</b><br />Give it to the tenant privately — it is shown only once. They choose their own password at first sign-in.</div>}
+        <button className="sm" style={{ marginTop: 8 }} onClick={makeLogin}>{LG.data?.exists ? 'Reset password' : 'Create login'}</button></div>}
+      {(CP.data?.length ?? 0) > 0 && <><div className="sec">Complaints</div><div className="card tw"><table><thead><tr><th>Ref</th><th>Reported</th><th>Problem</th><th>Status</th></tr></thead>
+        <tbody>{CP.data!.map((c: any) => <tr key={c.id}><td><Link href="/complaints">{c.refNo}</Link></td><td>{fmtDate(c.reportedAt)}</td><td>{c.title || c.subcategory}<div className="small muted">{c.category}</div></td><td>{c.status}</td></tr>)}</tbody></table></div></>}
       <div className="sec">Contracts</div>
       <div className="card tw">{t?.contracts?.length ? <table><thead><tr><th>Contract</th><th>Unit</th><th>Term</th><th className="n">Monthly rent</th><th className="n">Deposit</th><th>VAT</th><th>Status</th><th>E-contract</th><th>Municipality reg.</th></tr></thead>
         <tbody>{t.contracts.map((c: any) => <tr key={c.id}><td><Link href={`/contracts?id=${c.id}`}><b>{c.contractNo}</b></Link></td><td>{c.unit.building.name} {c.unit.unitNo}</td><td>{fmtDate(c.startDate)} – {fmtDate(c.expiryDate)}</td>

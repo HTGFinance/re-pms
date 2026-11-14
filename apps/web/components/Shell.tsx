@@ -8,10 +8,12 @@ const MeCtx = createContext<Me | null>(null);
 export const useMe = () => useContext(MeCtx);
 
 const NAV: { href: string; label: string; roles?: Role[] }[] = [
-  { href: '/', label: 'Dashboard' },
+  { href: '/', label: 'Dashboard', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'MAINTENANCE_SUPERVISOR', 'EXECUTIVE'] },
   { href: '/properties', label: 'Buildings & units', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'MAINTENANCE_SUPERVISOR', 'EXECUTIVE'] },
   { href: '/tenants', label: 'Tenants', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'MAINTENANCE_SUPERVISOR', 'EXECUTIVE'] },
   { href: '/contracts', label: 'Contracts', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'EXECUTIVE'] },
+  { href: '/complaints', label: 'Complaints', roles: ['MAINTENANCE_SUPERVISOR', 'PROPERTY_MANAGER', 'TECHNICIAN', 'EXECUTIVE'] },
+  { href: '/notices', label: 'Notices to vacate', roles: ['PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'EXECUTIVE'] },
   { href: '/recovery', label: 'Rent recovery', roles: ['RECOVERY', 'FINANCE', 'PROPERTY_MANAGER', 'EXECUTIVE'] },
   { href: '/cheques', label: 'Cheques (PDC)', roles: ['RECOVERY', 'FINANCE', 'PROPERTY_MANAGER', 'EXECUTIVE'] },
   { href: '/imports', label: 'Data import', roles: ['PROPERTY_MANAGER', 'FINANCE'] },
@@ -21,9 +23,8 @@ const NAV: { href: string; label: string; roles?: Role[] }[] = [
 
 export default function Shell({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null); const path = usePathname(); const router = useRouter();
-  useEffect(() => { api<Me>('/auth/me').then(setMe).catch(() => router.replace('/login')); }, [router]);
+  useEffect(() => { api<Me & { mustChangePassword?: boolean }>('/auth/me').then((m) => { if (m.role === 'TENANT') router.replace('/t'); else if (m.mustChangePassword) router.replace('/password'); else { if (m.role === 'TECHNICIAN' && window.location.pathname === '/') router.replace('/complaints'); setMe(m); } }).catch(() => router.replace('/login')); }, [router]);
   if (!me) return <div className="empty">Loading…</div>;
-  if (me.role === 'TENANT') return <div className="empty">The tenant app arrives in phase 3. Please use a staff account here.</div>;
   const items = NAV.filter((n) => !n.roles || me.role === 'ADMIN' || n.roles.includes(me.role));
   const logout = async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); router.replace('/login'); };
   return <MeCtx.Provider value={me}><div className="app">

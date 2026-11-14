@@ -24,7 +24,9 @@ Omani Rial with 3 decimals (baisa). Designed to connect to Odoo later.
 | **Phase 2:** rent billing by payment frequency (with VAT), tenant ledger and statement, ageing | Done |
 | **Phase 2:** payments with maker-checker verification, receipts, charges and credit notes | Done |
 | **Phase 2:** post-dated cheque register (deposit, clear, bounce, replace), rent recovery page (schedule, arrears, verification queue) | Done |
-| Phase 3 — tenant mobile app · Phase 4 — maintenance app · Phase 5 — executive dashboard (budget vs actual, periods) · Phase 6 — payment gateway, SMS/WhatsApp, Odoo | Planned |
+| **Phase 3:** tenant app (phone): balance, pay by bank transfer with receipt, statement, contract e-acceptance, notice to vacate, alerts | Done |
+| **Phase 3:** complaints: tenant submits maintenance / service / flat complaints with photos, tracks status, confirms or reopens; staff Complaints page (assign, status, notes, photos); notices to vacate | Done |
+| Phase 4 — maintenance app · Phase 5 — executive dashboard (budget vs actual, periods) · Phase 6 — payment gateway, SMS/WhatsApp, Odoo | Planned |
 
 The clickable prototype that defines the target screens is published separately (see project notes).
 
@@ -36,9 +38,10 @@ The clickable prototype that defines the target screens is published separately 
 | Property manager | Buildings, units, tenants, contracts, tenant/unit imports | Assigned (none = all) |
 | Finance | Verify/reject payments, clear/bounce cheques, credit notes, run billing, budget and payment imports | All |
 | Rent recovery | Record payments (pending), receive and deposit cheques, arrears follow-up | Assigned |
-| Maintenance supervisor / Technician | View properties (work orders in phase 4) | Assigned |
+| Maintenance supervisor | All complaints in their buildings: assign, prioritise, update, close | Assigned |
+| Technician | Only jobs assigned to them: start, awaiting materials, complete, photos, notes | Assigned |
 | Executive | View only | All |
-| Tenant | Own data only (tenant app in phase 3) | — |
+| Tenant | Tenant app only, own data: account, payments, complaints, contract, notice | — |
 
 ## Deploy on a cloud server (recommended)
 
@@ -99,9 +102,10 @@ npm run dev                       # http://localhost:4000/api
 cd apps/web && npm install && npm run dev    # http://localhost:3000
 ```
 
-Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 72 end-to-end checks: phase 1 (login, permissions,
+Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 118 end-to-end checks: phase 1 (login, permissions,
 building scope, contracts, e-contract workflow, registration fee, renewal, Excel import, audit log) and phase 2 (billing, VAT,
-ledger allocation and ageing, maker-checker, credit notes, cheques, recovery reports).
+ledger allocation and ageing, maker-checker, credit notes, cheques, recovery reports) and phase 3 (tenant logins and isolation,
+complaints workflow, photo uploads, transfers with receipts, contract acceptance, notices).
 
 ### Changing the database
 
@@ -126,10 +130,12 @@ apps/api/src
   common/money.ts           OMR arithmetic in integer baisa (no rounding errors)
   common/dates.ts           Oman dates, Excel date parsing (dd/mm/yyyy)
   modules/<area>/           one folder per area: auth, users, properties, tenants, contracts, imports, dashboard, audit,
-                            billing (invoices + ledger engine), payments, cheques, recovery
+                            billing (invoices + ledger engine), payments, cheques, recovery, complaints, me (tenant app)
 apps/web
   app/login                 sign-in page
-  app/(portal)/...          staff pages (dashboard, properties, tenants, contracts, recovery, cheques, imports, users, audit)
+  app/(portal)/...          staff pages (dashboard, properties, tenants, contracts, complaints, notices, recovery, cheques, imports, users, audit)
+  app/t/...                 tenant app (home, pay, complaints, my flat, alerts)
+  app/password              choose / change password
   components/               layout (Shell) and shared UI pieces
   lib/api.ts                API client and formatting helpers
 ```
@@ -142,6 +148,16 @@ apps/web
 - **Ledger.** What a tenant owes = invoices + charges − verified payments − credit notes. Payments always settle the oldest unpaid item first, which gives the per-invoice outstanding amounts and the ageing (1–30, 31–60, 61–90, 90+ days past due date).
 - **Maker-checker.** Recovery staff (or anyone) record a payment as *Pending*; it does not reduce the balance until a **different** finance user verifies it. The recorder can never verify or reject their own entry.
 - **Cheques.** Received cheques sit *In hand* and cannot be deposited before their date. A cheque becomes a payment only when finance marks it *Cleared*; a *Bounced* cheque leaves the rent unpaid, can carry a bounce fee, and is then *Replaced*.
+
+## Tenant app and complaints
+
+- **Tenant logins.** On a tenant's page, a property manager clicks *Create login*. The tenant's email is the login; a temporary password is shown once and must be replaced at first sign-in. The tenant app is the same web address (it opens at `/t` for tenants) and is designed for phones.
+- **Complaints.** Tenants pick a category (Repair, Replacement, Service, Cleaning, Painting, Flat / unit, Other — admin can change the list), describe the problem, add up to 5 photos and a preferred visit time. The flat is filled in from their contract.
+- **Workflow.** New → Reviewed → Technician assigned → Work in progress (or Awaiting materials / approval) → Work completed → Tenant confirmation pending → Closed. Assigning a technician moves it to *Technician assigned*. When work is marked completed, the tenant is asked to confirm: *Yes, solved* (with an optional 1–5 star rating) closes it; *No* reopens it for review. Unanswered complaints close automatically after `COMPLAINT_AUTO_CLOSE_DAYS` (7).
+- **What tenants see.** Simple status names, the progress steps, notes the team shares, and before/after photos. Internal notes, internal files and priority are staff-only.
+- **Technicians** see only jobs assigned to them. Phase 4 adds cost recording, technician performance and the maintenance dashboard.
+- **Uploads** (photos, receipts) are checked by content, limited to 10 MB, stored in `UPLOAD_DIR` (a Docker volume — include it in backups) and can be opened only by people allowed to see the record.
+- **Notice to vacate.** The tenant picks a leaving date; the system works out the notice period and the date rent runs to (the later of the two). Staff record inspection and key handover dates; the tenant is notified at each step.
 
 ## Rules built into the system
 
@@ -171,4 +187,10 @@ All routes are under `/api` and need a login except `/health` and `/auth/login`.
 | `GET/POST /payments` · `POST /payments/:id/verify` · `/reject` · `GET /payments/:id/receipt` | Payments and verification |
 | `GET /cheques` · `POST /cheques/series` · `/:id/deposit` · `/clear` · `/bounce` · `/replace` · `/return` | Cheque register |
 | `GET /recovery/schedule?period=YYYY-MM` · `/recovery/arrears` · `/recovery/summary` | Recovery reports |
+| `POST /tenants/:id/login` | Create or reset a tenant's app login (temporary password) |
+| `GET/POST /complaints` · `PATCH /complaints/:id` · `POST /complaints/:id/status` · `/notes` · `/files` · `GET /complaints/summary` | Complaints (staff) |
+| `GET/POST/PATCH /maintenance-categories` | Complaint categories (admin) |
+| `GET /notices` · `PATCH /notices/:id` | Notices to vacate (staff) |
+| `GET /files/:id` | Open an uploaded photo or receipt (access checked) |
+| `GET /me` · `/me/ledger` · `/me/payments` (POST with receipt) · `/me/complaints` (POST with photos, `/:id/confirm`, `/reopen`, `/cancel`) · `/me/contracts/:id/accept` · `/me/notices` · `/me/notifications` | Tenant app |
 | `GET /dashboard/summary`, `GET /audit` | Summary figures, audit log |

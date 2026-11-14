@@ -107,7 +107,9 @@ export class ComplaintsController {
       if (d.expectedDate !== undefined && d.expectedDate !== c.expectedDate) notes.push(d.expectedDate ? `Expected completion: ${d.expectedDate}` : 'Expected date cleared');
       if (d.assignedTo !== undefined && d.assignedTo !== c.assignedTo) notes.push(d.assignedTo ? 'Assigned to ' + (await em.findOneBy(User, { id: d.assignedTo }))!.name : 'Unassigned');
       Object.assign(c, d); await em.save(Complaint, c);
-      if (notes.length) await this.svc.event(em, id, c.status, notes.join(' · '), u, !notes.every((n) => n.startsWith('Priority')));
+      const shared = notes.filter((n) => !n.startsWith('Priority')), internal = notes.filter((n) => n.startsWith('Priority'));
+      if (internal.length) await this.svc.event(em, id, c.status, internal.join(' · '), u, false); // priority is a staff matter
+      if (shared.length) await this.svc.event(em, id, c.status, shared.join(' · '), u, true);
       // assigning a technician to a new/reviewed complaint moves it to 'Technician assigned'
       if (d.assignedTo && [S.NEW, S.REVIEWED].includes(c.status)) await this.svc.move(em, c, S.ASSIGNED, '', u);
     });
