@@ -29,6 +29,10 @@ export enum EContractStatus { DRAFT = 'Draft', SENT = 'Sent to tenant', TENANT_A
 export enum PaymentFrequency { MONTHLY = 'Monthly', QUARTERLY = 'Quarterly', HALF_YEARLY = 'Half-yearly', YEARLY = 'Yearly' }
 export enum PaymentStatus { PENDING = 'Pending', VERIFIED = 'Verified', REJECTED = 'Rejected' }
 export enum PaymentMethod { GATEWAY = 'Online gateway', BANK_TRANSFER = 'Bank transfer', CASH = 'Cash', CHEQUE = 'Cheque', CARD = 'Card (POS)', OPENING = 'Opening advance' }
+/** Complaint workflow (spec section 4C). 'Work completed' moves straight to 'Tenant confirmation pending'. */
+export enum ComplaintStatus { NEW = 'New', REVIEWED = 'Reviewed', ASSIGNED = 'Technician assigned', IN_PROGRESS = 'Work in progress', AWAITING = 'Awaiting materials / approval', COMPLETED = 'Work completed', CONFIRMATION = 'Tenant confirmation pending', CLOSED = 'Closed', CANCELLED = 'Cancelled' }
+export enum Priority { LOW = 'Low', MEDIUM = 'Medium', HIGH = 'High', URGENT = 'Urgent' }
+export enum NoticeStatus { SUBMITTED = 'Submitted', ACKNOWLEDGED = 'Acknowledged', INSPECTION_SCHEDULED = 'Inspection scheduled', INSPECTED = 'Inspection done', HANDED_OVER = 'Keys handed over', SETTLED = 'Settled', CANCELLED = 'Cancelled' }
 export enum ChequeStatus { IN_HAND = 'In hand', DEPOSITED = 'Deposited', CLEARED = 'Cleared', BOUNCED = 'Bounced', REPLACED = 'Replaced', RETURNED = 'Returned to tenant', CANCELLED = 'Cancelled' }
 
 @Entity('buildings')
@@ -105,6 +109,8 @@ export class Contract {
   @Column({ name: 'municipality_reg_date', type: 'date', nullable: true }) municipalityRegDate: string | null;
   @Column({ name: 'municipality_fee', ...money }) municipalityFee: string;
   @Column({ name: 'renewal_of', type: 'uuid', nullable: true }) renewalOf: string | null;
+  @Column({ name: 'tenant_accepted_at', type: 'timestamptz', nullable: true }) tenantAcceptedAt: Date | null;
+  @Column({ name: 'tenant_accepted_ip', length: 60, default: '' }) tenantAcceptedIp: string;
   @Column({ type: 'text', default: '' }) notes: string;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
@@ -186,6 +192,105 @@ export class Cheque {
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
 }
 
+/** Configurable complaint categories and subcategories (admin can add or retire). */
+@Entity('maintenance_categories')
+@Unique('uq_category_sub', ['category', 'subcategory'])
+export class MaintenanceCategory {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Column({ length: 60 }) category: string;
+  @Column({ length: 80 }) subcategory: string;
+  @Column({ name: 'sort_order', type: 'smallint', default: 0 }) sortOrder: number;
+  @Column({ name: 'is_active', default: true }) isActive: boolean;
+}
+
+@Entity('complaints')
+export class Complaint {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Index({ unique: true }) @Column({ name: 'ref_no', length: 20 }) refNo: string; // CMP-00001
+  @Index() @Column({ name: 'tenant_id', type: 'uuid', nullable: true }) tenantId: string | null; // null = raised by staff (e.g. common area)
+  @Index() @Column({ name: 'unit_id', type: 'uuid', nullable: true }) unitId: string | null;
+  @Index() @Column({ name: 'building_id', type: 'uuid' }) buildingId: string;
+  @Column({ length: 60 }) category: string;
+  @Column({ length: 80 }) subcategory: string;
+  @Column({ length: 150, default: '' }) title: string;
+  @Column({ type: 'text' }) description: string;
+  @Column({ type: 'enum', enum: Priority, default: Priority.MEDIUM }) priority: Priority;
+  @Index() @Column({ type: 'enum', enum: ComplaintStatus, default: ComplaintStatus.NEW }) status: ComplaintStatus;
+  @Column({ name: 'assigned_to', type: 'uuid', nullable: true }) assignedTo: string | null;
+  @Column({ name: 'expected_date', type: 'date', nullable: true }) expectedDate: string | null;
+  @Column({ name: 'preferred_visit', length: 150, default: '' }) preferredVisit: string; // tenant's preferred visit time
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true }) completedAt: Date | null;
+  @Column({ name: 'closed_at', type: 'timestamptz', nullable: true }) closedAt: Date | null;
+  @Column({ name: 'reopen_count', type: 'smallint', default: 0 }) reopenCount: number;
+  @Column({ name: 'tenant_rating', type: 'smallint', nullable: true }) tenantRating: number | null; // 1–5
+  @Column({ name: 'tenant_feedback', type: 'text', default: '' }) tenantFeedback: string;
+  @Column({ name: 'created_by', type: 'uuid', nullable: true }) createdBy: string | null;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
+/** Every status change / note on a complaint: the timeline the tenant and staff see. */
+@Entity('complaint_events')
+export class ComplaintEvent {
+  @PrimaryGeneratedColumn('increment', { type: 'bigint' }) id: string;
+  @Index() @Column({ name: 'complaint_id', type: 'uuid' }) complaintId: string;
+  @Column({ length: 40 }) status: string;
+  @Column({ type: 'text', default: '' }) note: string;
+  @Column({ name: 'visible_to_tenant', default: true }) visibleToTenant: boolean;
+  @Column({ name: 'user_id', type: 'uuid', nullable: true }) userId: string | null;
+  @Column({ name: 'user_name', length: 150, default: '' }) userName: string;
+  @CreateDateColumn({ name: 'at', type: 'timestamptz' }) at: Date;
+}
+
+/** Uploaded files (complaint photos, transfer receipts, documents). Stored on disk under UPLOAD_DIR. */
+@Entity('attachments')
+@Index('ix_attachment_owner', ['ownerType', 'ownerId'])
+export class Attachment {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Column({ name: 'owner_type', length: 30 }) ownerType: string; // complaint | payment | contract | tenant
+  @Column({ name: 'owner_id', type: 'uuid' }) ownerId: string;
+  @Column({ length: 30, default: 'file' }) kind: string; // tenant-photo | before | after | receipt | document
+  @Column({ name: 'original_name', length: 200 }) originalName: string;
+  @Column({ length: 100 }) mime: string;
+  @Column({ type: 'int' }) size: number;
+  @Column({ name: 'storage_key', length: 200 }) storageKey: string;
+  @Column({ name: 'uploaded_by', type: 'uuid', nullable: true }) uploadedBy: string | null;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
+/** In-app notifications (SMS / WhatsApp delivery is added in phase 6). */
+@Entity('notifications')
+export class Notification {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Index() @Column({ name: 'user_id', type: 'uuid', nullable: true }) userId: string | null;
+  @Index() @Column({ name: 'tenant_id', type: 'uuid', nullable: true }) tenantId: string | null;
+  @Column({ length: 150 }) title: string;
+  @Column({ type: 'text' }) body: string;
+  @Column({ length: 200, default: '' }) link: string;
+  @Column({ name: 'read_at', type: 'timestamptz', nullable: true }) readAt: Date | null;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
+@Entity('vacate_notices')
+export class VacateNotice {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Index({ unique: true }) @Column({ name: 'ref_no', length: 20 }) refNo: string; // NTV-00001
+  @Index() @Column({ name: 'tenant_id', type: 'uuid' }) tenantId: string;
+  @Index() @Column({ name: 'contract_id', type: 'uuid' }) contractId: string;
+  @Column({ name: 'submitted_on', type: 'date' }) submittedOn: string;
+  @Column({ name: 'proposed_date', type: 'date' }) proposedDate: string;
+  @Column({ name: 'notice_months', type: 'smallint' }) noticeMonths: number;
+  @Column({ name: 'notice_end', type: 'date' }) noticeEnd: string;        // submitted + notice period
+  @Column({ name: 'final_rent_date', type: 'date' }) finalRentDate: string; // later of proposed date and notice end
+  @Column({ type: 'text', default: '' }) reason: string;
+  @Column({ type: 'enum', enum: NoticeStatus, default: NoticeStatus.SUBMITTED }) status: NoticeStatus;
+  @Column({ name: 'inspection_date', type: 'date', nullable: true }) inspectionDate: string | null;
+  @Column({ name: 'handover_date', type: 'date', nullable: true }) handoverDate: string | null;
+  @Column({ name: 'staff_note', type: 'text', default: '' }) staffNote: string;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
 @Entity('budgets')
 @Unique('uq_budget_building_period', ['buildingId', 'period'])
 export class Budget {
@@ -211,6 +316,8 @@ export class User {
   /** For TENANT logins: the tenant record they may see. */
   @Column({ name: 'tenant_id', type: 'uuid', nullable: true }) tenantId: string | null;
   @Column({ name: 'is_active', default: true }) isActive: boolean;
+  /** Set for new tenant logins / password resets: the user must choose a new password before using the system. */
+  @Column({ name: 'must_change_password', default: false }) mustChangePassword: boolean;
   @Column({ name: 'last_login_at', type: 'timestamptz', nullable: true }) lastLoginAt: Date | null;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
 }
@@ -234,4 +341,5 @@ export class Counter {
   @Column({ type: 'int', default: 0 }) value: number;
 }
 
-export const ENTITIES = [Building, Unit, Tenant, Contract, Invoice, LedgerCharge, Payment, Cheque, Budget, User, AuditLog, Counter];
+export const ENTITIES = [Building, Unit, Tenant, Contract, Invoice, LedgerCharge, Payment, Cheque, Budget, User, AuditLog, Counter,
+  MaintenanceCategory, Complaint, ComplaintEvent, Attachment, Notification, VacateNotice];

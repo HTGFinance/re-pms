@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import { Role } from '../database/entities';
 
-export interface AuthUser { id: string; email: string; name: string; role: Role; tenantId: string | null; buildingIds: string[] }
+export interface AuthUser { id: string; email: string; name: string; role: Role; tenantId: string | null; buildingIds: string[]; mustChangePassword?: boolean }
 
 export const IS_PUBLIC = 'isPublic';
 export const Public = () => SetMetadata(IS_PUBLIC, true);
@@ -33,9 +33,11 @@ export class AuthGuard implements CanActivate {
     catch { throw new UnauthorizedException('Session expired, please sign in again'); }
     const roles = this.reflector.getAllAndOverride<Role[]>(ROLES, targets);
     const u: AuthUser = req.user;
+    // New logins with a temporary password may only change it (and sign out / read their identity)
+    if (u.mustChangePassword && !/\/api\/auth\/(change-password|me|logout)/.test(req.originalUrl)) throw new ForbiddenException('Please choose a new password first');
     if (roles && u.role !== Role.ADMIN && !roles.includes(u.role)) throw new ForbiddenException('Your role does not allow this action');
     // Tenants may only use routes explicitly opened to them
-    if (u.role === Role.TENANT && !(roles && roles.includes(Role.TENANT))) throw new ForbiddenException('Not available to tenant accounts');
+    if (u.role === Role.TENANT && !(roles && roles.includes(Role.TENANT)) && !String(req.originalUrl).startsWith('/api/auth/')) throw new ForbiddenException('Not available to tenant accounts');
     return true;
   }
 }

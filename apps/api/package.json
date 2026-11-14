@@ -13,7 +13,7 @@
     "migration:run:prod": "typeorm -d dist/database/data-source.js migration:run",
     "seed": "ts-node --transpile-only src/database/seed.ts",
     "seed:prod": "node dist/database/seed.js",
-    "test:e2e": "node test/e2e.mjs && node test/e2e-phase2.mjs"
+    "test:e2e": "node test/e2e.mjs && node test/e2e-phase2.mjs && node test/e2e-phase3.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.5.0",

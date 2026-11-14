@@ -21,6 +21,11 @@ import { BillingController } from './modules/billing/billing.controller';
 import { PaymentsController } from './modules/payments/payments.controller';
 import { ChequesController } from './modules/cheques/cheques.controller';
 import { RecoveryController } from './modules/recovery/recovery.controller';
+import { FilesService } from './common/files.service';
+import { NotifyService } from './common/notify.service';
+import { ComplaintsService } from './modules/complaints/complaints.service';
+import { ComplaintsController } from './modules/complaints/complaints.controller';
+import { MeController } from './modules/me/me.controller';
 
 @Controller('health')
 class HealthController { @Public() @Get() ok() { return { status: 'ok', time: new Date().toISOString() }; } }
@@ -31,9 +36,9 @@ class HealthController { @Public() @Get() ok() { return { status: 'ok', time: ne
     TypeOrmModule.forFeature(ENTITIES),
     JwtModule.register({ global: true, secret: config.jwtSecret, signOptions: { expiresIn: config.jwtExpiresIn as any } }),
   ],
-  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController, BillingController, PaymentsController, ChequesController, RecoveryController],
+  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController, BillingController, PaymentsController, ChequesController, RecoveryController, ComplaintsController, MeController],
   providers: [
-    NumberingService, ContractsService, LedgerService,
+    NumberingService, ContractsService, LedgerService, FilesService, NotifyService, ComplaintsService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],

@@ -18,9 +18,9 @@ export class AuthController {
 
   @Public() @Post('login') @HttpCode(200)
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) res: Response) {
-    const u = await this.users.findOne({ where: { email: dto.email.toLowerCase().trim() }, relations: { buildings: true }, select: { id: true, email: true, name: true, role: true, tenantId: true, isActive: true, passwordHash: true, buildings: { id: true } } });
+    const u = await this.users.findOne({ where: { email: dto.email.toLowerCase().trim() }, relations: { buildings: true }, select: { id: true, email: true, name: true, role: true, tenantId: true, isActive: true, passwordHash: true, mustChangePassword: true, buildings: { id: true } } });
     if (!u || !u.isActive || !(await bcrypt.compare(dto.password, u.passwordHash))) throw new UnauthorizedException('Wrong email or password');
-    const payload: AuthUser = { id: u.id, email: u.email, name: u.name, role: u.role, tenantId: u.tenantId, buildingIds: (u.buildings || []).map((b) => b.id) };
+    const payload: AuthUser = { id: u.id, email: u.email, name: u.name, role: u.role, tenantId: u.tenantId, buildingIds: (u.buildings || []).map((b) => b.id), mustChangePassword: u.mustChangePassword };
     const token = await this.jwt.signAsync(payload);
     await this.users.update(u.id, { lastLoginAt: new Date() });
     res.cookie('repms_token', token, { httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, maxAge: 12 * 3600 * 1000, path: '/' });
@@ -32,11 +32,16 @@ export class AuthController {
 
   @Get('me') me(@CurrentUser() u: AuthUser) { return u; }
 
+  /** Change password; also clears the 'must change' flag and issues a fresh session. */
   @Post('change-password') @HttpCode(200)
-  async changePassword(@CurrentUser() me: AuthUser, @Body() dto: ChangePasswordDto) {
+  async changePassword(@CurrentUser() me: AuthUser, @Body() dto: ChangePasswordDto, @Res({ passthrough: true }) res: Response) {
     const u = await this.users.findOne({ where: { id: me.id }, select: { id: true, passwordHash: true } });
     if (!u || !(await bcrypt.compare(dto.currentPassword, u.passwordHash))) throw new BadRequestException('Current password is wrong');
-    await this.users.update(u.id, { passwordHash: await bcrypt.hash(dto.newPassword, 10) });
-    return { ok: true };
+    if (dto.currentPassword === dto.newPassword) throw new BadRequestException('Choose a password different from the current one');
+    await this.users.update(u.id, { passwordHash: await bcrypt.hash(dto.newPassword, 10), mustChangePassword: false });
+    const payload: AuthUser = { ...me, mustChangePassword: false }; delete (payload as any).iat; delete (payload as any).exp;
+    const token = await this.jwt.signAsync(payload);
+    res.cookie('repms_token', token, { httpOnly: true, sameSite: 'lax', secure: config.cookieSecure, maxAge: 12 * 3600 * 1000, path: '/' });
+    return { ok: true, token };
   }
 }

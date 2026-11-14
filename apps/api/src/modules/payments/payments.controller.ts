@@ -31,7 +31,7 @@ export class PaymentsController {
       WHERE ${w.join(' AND ')} ORDER BY p.date DESC, p.receipt_no DESC LIMIT 1000`, p);
     return rows.map((r: any) => ({ id: r.id, receiptNo: r.receipt_no, date: r.date, amount: omr(r.amount), method: r.method, reference: r.reference, status: r.status, notes: r.notes,
       rejectReason: r.reject_reason, chequeId: r.cheque_id, tenant: { id: r.tenant_id, name: r.tenant_name, tenantNo: r.tenant_no },
-      recordedBy: r.recorded_by_name, verifiedBy: r.verified_by_name, verifiedAt: r.verified_at,
+      recordedBy: r.recorded_by_name, verifiedBy: r.verified_by_name, verifiedAt: r.verified_at, attachmentUrl: r.attachment ? `/api/files/${r.attachment}` : null,
       canVerify: r.status === 'Pending' && r.recorded_by !== u.id && (u.role === Role.ADMIN || VERIFIERS.includes(u.role)) }));
   }
 
