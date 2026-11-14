@@ -25,10 +25,10 @@ export function BarChart({ labels, series, line, height = 220 }: { labels: strin
 }
 
 /** Horizontal bars for parts of a whole (label, value, share). */
-export function HBars({ items, unit = '' }: { items: { label: string; value: number; color?: string }[]; unit?: string }) {
-  const max = Math.max(1, ...items.map((i) => i.value)); const total = items.reduce((s, i) => s + i.value, 0);
+export function HBars({ items, unit = '', suffix = '', max: fixedMax, share = true }: { items: { label: string; value: number; color?: string }[]; unit?: string; suffix?: string; max?: number; share?: boolean }) {
+  const max = fixedMax || Math.max(1, ...items.map((i) => i.value)); const total = items.reduce((s, i) => s + i.value, 0);
   return <div>{items.map((it, i) => <div key={it.label} style={{ marginBottom: 9 }}>
-    <div className="row small" style={{ justifyContent: 'space-between' }}><span>{it.label}</span><b>{unit}{it.value.toLocaleString('en-US', { minimumFractionDigits: unit ? 3 : 0, maximumFractionDigits: unit ? 3 : 0 })}{total ? <span className="muted" style={{ fontWeight: 400 }}> · {Math.round((it.value / total) * 100)}%</span> : null}</b></div>
+    <div className="row small" style={{ justifyContent: 'space-between' }}><span>{it.label}</span><b>{unit}{it.value.toLocaleString('en-US', { minimumFractionDigits: unit ? 3 : 0, maximumFractionDigits: unit ? 3 : 0 })}{suffix}{share && total ? <span className="muted" style={{ fontWeight: 400 }}> · {Math.round((it.value / total) * 100)}%</span> : null}</b></div>
     <div style={{ height: 9, background: '#eef2f7', borderRadius: 5, marginTop: 3 }}><div style={{ width: `${(it.value / max) * 100}%`, height: '100%', background: it.color || COLORS[i % COLORS.length], borderRadius: 5 }} /></div>
   </div>)}</div>;
 }

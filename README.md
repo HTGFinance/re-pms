@@ -27,7 +27,8 @@ Omani Rial with 3 decimals (baisa). Designed to connect to Odoo later.
 | **Phase 3:** tenant app (phone): balance, pay by bank transfer with receipt, statement, contract e-acceptance, notice to vacate, alerts | Done |
 | **Phase 3:** complaints: tenant submits maintenance / service / flat complaints with photos, tracks status, confirms or reopens; staff Complaints page (assign, status, notes, photos); notices to vacate | Done |
 | **Phase 4:** maintenance costs (material, labour, contractor, other; who pays), approvals, recoverable charges to tenants, maintenance dashboard, technician performance, history by building/unit, Excel monthly report, technician phone app | Done |
-| Phase 5 — executive dashboard (budget vs actual, periods) · Phase 6 — payment gateway, SMS/WhatsApp, Odoo | Planned |
+| **Phase 5:** executive dashboard: month / quarter / year / year to date / from–to, budget vs actual (rent, collections, maintenance, NOI), occupancy, collection rate, vacancy loss, ageing, building performance, risks, Excel board pack | Done |
+| Phase 6 — payment gateway, SMS/WhatsApp, Odoo | Planned |
 
 The clickable prototype that defines the target screens is published separately (see project notes).
 
@@ -103,11 +104,12 @@ npm run dev                       # http://localhost:4000/api
 cd apps/web && npm install && npm run dev    # http://localhost:3000
 ```
 
-Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 151 end-to-end checks: phase 1 (login, permissions,
+Tests: with the API running on demo data, `cd apps/api && npm run test:e2e` runs 170 end-to-end checks: phase 1 (login, permissions,
 building scope, contracts, e-contract workflow, registration fee, renewal, Excel import, audit log) and phase 2 (billing, VAT,
 ledger allocation and ageing, maker-checker, credit notes, cheques, recovery reports) and phase 3 (tenant logins and isolation,
 complaints workflow, photo uploads, transfers with receipts, contract acceptance, notices) and phase 4 (costs, approval rules,
-recoverable charges, dashboard figures, history, Excel report).
+recoverable charges, dashboard figures, history, Excel report) and phase 5 (executive figures, budget vs actual and
+pro-rating, year to date, building split, board pack). Seed with `SEED_DEMO=true` before running them.
 
 ### Changing the database
 
@@ -171,6 +173,15 @@ apps/web
 - **History** lists every job and its cost for a building or a single unit.
 - **Technician app** (`/m`, for phones): open jobs grouped by overdue / due today / coming up, directions and tap-to-call, start / waiting for materials / completed (a note is required to complete), camera photos, cost entry.
 
+## Executive dashboard
+
+- **Who sees it:** executives (it is their landing page), finance and property managers. Property managers see only their buildings.
+- **Periods:** month, quarter, year, year to date, or any from–to range, for all buildings or one. A *year to date at a glance* row is always shown.
+- **Figures for the period:** rent billed (excl. VAT) and VAT; *collected against billing* (how much of the period's invoices has been paid, by FIFO allocation) and the collection rate; cash received (verified payments by payment date); maintenance (approved and not-needing-approval costs, excluding tenant-paid); NOI = rent billed − maintenance; occupancy at the period end (or today); vacancy loss = listed rent of empty units for the days they were empty.
+- **Budget vs actual:** budgets are imported monthly per building (Data import → Budget). A part month counts its days only, and days after today are never counted, so a year view in November compares like with like. Rent, collections and NOI are favourable at or above budget; maintenance at or below budget.
+- **Today:** outstanding rent and ageing, tenants in arrears, monthly rent roll, deposits held, contracts expiring in 90 days, contracts not registered with the municipality, cheques due and bounced, payments awaiting verification, open and overdue complaints, costs awaiting approval, open notices.
+- **Board pack (Excel)** downloads Summary, Buildings and Monthly sheets for the chosen period.
+
 ## Rules built into the system
 
 - Amounts are stored as `NUMERIC(14,3)` and calculated in baisa; never as floating-point numbers.
@@ -207,4 +218,5 @@ All routes are under `/api` and need a login except `/health` and `/auth/login`.
 | `GET /me` · `/me/ledger` · `/me/payments` (POST with receipt) · `/me/complaints` (POST with photos, `/:id/confirm`, `/reopen`, `/cancel`) · `/me/contracts/:id/accept` · `/me/notices` · `/me/notifications` | Tenant app |
 | `GET/POST /complaints/:id/costs` · `PATCH/DELETE /maintenance-costs/:id` · `GET /maintenance-costs?approval=Pending` · `POST /maintenance-costs/:id/approve` · `/reject` | Maintenance costs and approvals |
 | `GET /maintenance/dashboard?from=&to=&buildingId=` · `/maintenance/history` · `/maintenance/report.xlsx` | Maintenance dashboard, history, Excel report |
+| `GET /executive/dashboard?from=&to=&buildingId=` · `GET /executive/report.xlsx` | Executive dashboard and Excel board pack |
 | `GET /dashboard/summary`, `GET /audit` | Summary figures, audit log |

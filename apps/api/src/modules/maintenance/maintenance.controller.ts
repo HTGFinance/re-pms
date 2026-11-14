@@ -199,8 +199,9 @@ export class MaintenanceController {
     const pb: unknown[] = []; const sb = this.scope(u, buildingId, 'building_id', pb);
     const budgets = await this.ds.query(`SELECT period, SUM(maintenance) AS m FROM budgets WHERE ${sb} GROUP BY period`, pb);
     let budget = 0;
-    for (const r of budgets) { const ms = r.period + '-01', me = addMonths(ms, 1); const dim = daysBetween(ms, me); const a = from > ms ? from : ms; const lastDay = me.slice(0, 8) + '01'; const b = to < lastDay ? to : null;
-      const end = b ?? new Date(Date.parse(me + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10); if (a > end) continue; budget += toBaisa(r.m) * (daysBetween(a, end) + 1) / dim; }
+    const upTo = to < todayOman() ? to : todayOman(); // budget counted only up to today, like actual spend
+    for (const r of budgets) { const ms = r.period + '-01', me = addMonths(ms, 1); const dim = daysBetween(ms, me); const monthEnd = new Date(Date.parse(me + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10);
+      const a = from > ms ? from : ms; const end = upTo < monthEnd ? upTo : monthEnd; if (a > end) continue; budget += toBaisa(r.m) * (daysBetween(a, end) + 1) / dim; }
     // 12-month trend ending at "to"
     const start = addMonths(to.slice(0, 8) + '01', -11);
     const pt: unknown[] = [start, to]; const st = this.scope(u, buildingId, 'k.building_id', pt);

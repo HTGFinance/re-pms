@@ -27,6 +27,7 @@ import { ComplaintsService } from './modules/complaints/complaints.service';
 import { ComplaintsController } from './modules/complaints/complaints.controller';
 import { MeController } from './modules/me/me.controller';
 import { MaintenanceController } from './modules/maintenance/maintenance.controller';
+import { ExecutiveController } from './modules/executive/executive.controller';
 
 @Controller('health')
 class HealthController { @Public() @Get() ok() { return { status: 'ok', time: new Date().toISOString() }; } }
@@ -37,7 +38,7 @@ class HealthController { @Public() @Get() ok() { return { status: 'ok', time: ne
     TypeOrmModule.forFeature(ENTITIES),
     JwtModule.register({ global: true, secret: config.jwtSecret, signOptions: { expiresIn: config.jwtExpiresIn as any } }),
   ],
-  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController, BillingController, PaymentsController, ChequesController, RecoveryController, ComplaintsController, MeController, MaintenanceController],
+  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController, BillingController, PaymentsController, ChequesController, RecoveryController, ComplaintsController, MeController, MaintenanceController, ExecutiveController],
   providers: [
     NumberingService, ContractsService, LedgerService, FilesService, NotifyService, ComplaintsService,
     { provide: APP_GUARD, useClass: AuthGuard },

@@ -4,7 +4,7 @@
   "private": true,
   "description": "RE-PMS API (NestJS + TypeORM + PostgreSQL)",
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist tsconfig.build.tsbuildinfo && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
     "typeorm": "typeorm-ts-node-commonjs -d src/database/data-source.ts",
@@ -13,7 +13,7 @@
     "migration:run:prod": "typeorm -d dist/database/data-source.js migration:run",
     "seed": "ts-node --transpile-only src/database/seed.ts",
     "seed:prod": "node dist/database/seed.js",
-    "test:e2e": "node test/e2e.mjs && node test/e2e-phase2.mjs && node test/e2e-phase3.mjs && node test/e2e-phase4.mjs"
+    "test:e2e": "node test/e2e.mjs && node test/e2e-phase2.mjs && node test/e2e-phase3.mjs && node test/e2e-phase4.mjs && node test/e2e-phase5.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^12.5.0",
