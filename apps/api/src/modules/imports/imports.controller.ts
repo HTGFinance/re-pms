@@ -9,6 +9,7 @@ import { NumberingService } from '../../common/numbering.service';
 import { omr, toBaisa, fromBaisa } from '../../common/money';
 import { addDays, parseDate, todayOman } from '../../common/dates';
 import { ContractsService } from '../contracts/contracts.controller';
+import { LedgerService } from '../billing/ledger.service';
 
 type Row = Record<string, unknown>;
 export type ImportType = 'units' | 'tenants' | 'budget' | 'payments';
@@ -79,7 +80,7 @@ interface Checked { line: number; ok: boolean; message: string; data?: any; raw:
 
 @Controller('imports')
 export class ImportsController {
-  constructor(private ds: DataSource, private num: NumberingService, private contracts: ContractsService) {}
+  constructor(private ds: DataSource, private num: NumberingService, private contracts: ContractsService, private ledger: LedgerService) {}
 
   /** Download an empty template workbook for an import type. */
   @Get('templates/:type') @Roles(Role.PROPERTY_MANAGER, Role.FINANCE)
@@ -104,13 +105,15 @@ export class ImportsController {
     if (u.role !== Role.ADMIN && !t.roles.includes(u.role)) throw new BadRequestException(`Your role cannot import ${type}`);
     if (!file) throw new BadRequestException('Attach a file in the "file" field');
     const { rows, sheet } = await readRows(file, t.sheet);
-    return this.ds.transaction(async (em) => {
+    const result = await this.ds.transaction(async (em) => {
       const checked = await this.validate(em, u, type, rows);
       const valid = checked.filter((c) => c.ok);
       if (commit === 'true') { for (const c of valid) await this.apply(em, u, type, c); }
       return { type, sheet, committed: commit === 'true', total: rows.length, valid: valid.length, errors: rows.length - valid.length,
         rows: checked.map(({ line, ok, message, raw }) => ({ line, ok, message, raw })) };
     });
+    if (result.committed && type === 'tenants') await this.ledger.runBilling();
+    return result;
   }
 
   private async validate(em: EntityManager, u: AuthUser, type: ImportType, rows: Row[]): Promise<Checked[]> {

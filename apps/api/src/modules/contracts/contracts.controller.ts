@@ -6,6 +6,7 @@ import { Contract, ContractStatus, EContractStatus, PaymentFrequency, Role, Tena
 import { AuthUser, buildingScope, CurrentUser, Roles } from '../../common/auth';
 import { NumberingService } from '../../common/numbering.service';
 import { omr, mulOmr } from '../../common/money';
+import { LedgerService } from '../billing/ledger.service';
 import { addDays, addMonths, daysBetween, todayOman } from '../../common/dates';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -20,6 +21,8 @@ class CreateContractDto {
   @IsOptional() @IsEnum(PaymentFrequency) paymentFrequency?: PaymentFrequency;
   @IsOptional() @IsInt() @Min(1) @Max(28) rentDueDay?: number; @IsOptional() @IsInt() @Min(0) @Max(12) noticeMonths?: number;
   @IsOptional() @IsBoolean() vatApplicable?: boolean; @IsOptional() @IsBoolean() asDraft?: boolean; @IsOptional() @IsString() @MaxLength(2000) notes?: string;
+  /** First day rent is billed. Default: the later of the start date and the 1st of the current month (older rent = opening balance). */
+  @IsOptional() @Matches(DATE) billFrom?: string;
 }
 class UpdateContractDto {
   @IsOptional() @Matches(DATE) startDate?: string; @IsOptional() @Matches(DATE) expiryDate?: string;
@@ -75,6 +78,7 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
     return em.save(Contract, em.create(Contract, {
       contractNo: await this.num.next(em, 'contract', 'CTR-'), tenantId: d.tenantId, unitId: unit.id,
       startDate: d.startDate, expiryDate: expiry, tenancyFrom: d.tenancyFrom || d.startDate,
+      billFrom: d.billFrom ? (d.billFrom < d.startDate ? d.startDate : d.billFrom) : (d.startDate > todayOman().slice(0, 8) + '01' ? d.startDate : todayOman().slice(0, 8) + '01'),
       monthlyRent: omr(d.monthlyRent), securityDeposit: omr(d.securityDeposit ?? d.monthlyRent),
       paymentFrequency: d.paymentFrequency ?? PaymentFrequency.MONTHLY, rentDueDay: d.rentDueDay ?? 1,
       noticeMonths: d.noticeMonths ?? (vat ? 3 : 1), vatRate: vat ? VAT_RATE : '0',
@@ -85,7 +89,7 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
 
 @Controller('contracts')
 export class ContractsController {
-  constructor(private ds: DataSource, private svc: ContractsService, @InjectRepository(Contract) private contracts: Repository<Contract>) {}
+  constructor(private ds: DataSource, private svc: ContractsService, @InjectRepository(Contract) private contracts: Repository<Contract>, private ledger: LedgerService) {}
 
   private async load(u: AuthUser, id: string) {
     const c = await this.contracts.findOne({ where: { id }, relations: { tenant: true, unit: { building: true } } });
@@ -125,13 +129,15 @@ export class ContractsController {
   get(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) { return this.load(u, id); }
 
   @Post() @Roles(Role.PROPERTY_MANAGER)
-  create(@CurrentUser() u: AuthUser, @Body() d: CreateContractDto) {
-    return this.ds.transaction(async (em) => {
+  async create(@CurrentUser() u: AuthUser, @Body() d: CreateContractDto) {
+    const c = await this.ds.transaction(async (em) => {
       const unit = await em.findOne(Unit, { where: { id: d.unitId } }); if (!unit) throw new BadRequestException('Unknown unit');
       const s = buildingScope(u); if (s && !s.includes(unit.buildingId)) throw new ForbiddenException('Unit is outside your assigned buildings');
       if (!(await em.exists(Tenant, { where: { id: d.tenantId } }))) throw new BadRequestException('Unknown tenant');
       return this.svc.create(em, d, unit);
     });
+    await this.ledger.runBilling(undefined, c.id); // bill immediately
+    return c;
   }
 
   @Patch(':id') @Roles(Role.PROPERTY_MANAGER)
@@ -154,7 +160,7 @@ export class ContractsController {
   @Post(':id/activate') @HttpCode(200) @Roles(Role.PROPERTY_MANAGER)
   async activate(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) {
     const c = await this.load(u, id); if (c.status !== ContractStatus.DRAFT) throw new ConflictException('Only draft contracts can be activated');
-    await this.contracts.update(id, { status: this.svc.statusFor(c.startDate, c.expiryDate) }); return this.load(u, id);
+    await this.contracts.update(id, { status: this.svc.statusFor(c.startDate, c.expiryDate) }); await this.ledger.runBilling(undefined, id); return this.load(u, id);
   }
 
   /** End or terminate early; the unit becomes vacant from the day after. */
@@ -191,7 +197,7 @@ export class ContractsController {
     return this.ds.transaction(async (em) => {
       const n = await this.svc.create(em, { tenantId: c.tenantId, unitId: c.unitId, startDate: start, expiryDate: addDays(addMonths(start, d.months), -1), tenancyFrom: c.tenancyFrom,
         monthlyRent: d.monthlyRent, securityDeposit: c.securityDeposit, paymentFrequency: c.paymentFrequency, rentDueDay: c.rentDueDay, noticeMonths: c.noticeMonths,
-        vatApplicable: Number(c.vatRate) > 0 }, c.unit);
+        vatApplicable: Number(c.vatRate) > 0, billFrom: start }, c.unit);
       await em.update(Contract, n.id, { renewalOf: c.id }); return em.findOne(Contract, { where: { id: n.id } });
     });
   }

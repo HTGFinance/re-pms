@@ -39,3 +39,18 @@ export class AuthGuard implements CanActivate {
     return true;
   }
 }
+
+/** Throws unless the tenant belongs to the user's buildings (or the user is the tenant). */
+export async function assertTenantAccess(ds: import('typeorm').DataSource, u: AuthUser, tenantId: string) {
+  if (u.role === Role.TENANT) { if (u.tenantId !== tenantId) throw new ForbiddenException(); return; }
+  const s = buildingScope(u); if (!s) return;
+  const r = await ds.query(`SELECT EXISTS (SELECT 1 FROM contracts c JOIN units un ON un.id=c.unit_id WHERE c.tenant_id=$1 AND un.building_id = ANY($2)) AS ok,
+    NOT EXISTS (SELECT 1 FROM contracts WHERE tenant_id=$1) AS none`, [tenantId, s]);
+  if (!r[0].ok && !r[0].none) throw new ForbiddenException('Tenant is outside your assigned buildings');
+}
+/** SQL fragment + params limiting tenants to the user's buildings; `alias` is the tenant id column. */
+export function tenantScopeSql(u: AuthUser, alias: string, params: unknown[]): string {
+  const s = buildingScope(u); if (!s) return 'TRUE';
+  params.push(s);
+  return `EXISTS (SELECT 1 FROM contracts sc JOIN units su ON su.id=sc.unit_id WHERE sc.tenant_id=${alias} AND su.building_id = ANY($${params.length}))`;
+}

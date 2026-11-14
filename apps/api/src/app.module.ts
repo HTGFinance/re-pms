@@ -16,6 +16,11 @@ import { ContractsController, ContractsService } from './modules/contracts/contr
 import { ImportsController } from './modules/imports/imports.controller';
 import { DashboardController } from './modules/dashboard/dashboard.controller';
 import { AuditController } from './modules/audit/audit.controller';
+import { LedgerService } from './modules/billing/ledger.service';
+import { BillingController } from './modules/billing/billing.controller';
+import { PaymentsController } from './modules/payments/payments.controller';
+import { ChequesController } from './modules/cheques/cheques.controller';
+import { RecoveryController } from './modules/recovery/recovery.controller';
 
 @Controller('health')
 class HealthController { @Public() @Get() ok() { return { status: 'ok', time: new Date().toISOString() }; } }
@@ -26,9 +31,9 @@ class HealthController { @Public() @Get() ok() { return { status: 'ok', time: ne
     TypeOrmModule.forFeature(ENTITIES),
     JwtModule.register({ global: true, secret: config.jwtSecret, signOptions: { expiresIn: config.jwtExpiresIn as any } }),
   ],
-  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController],
+  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController, BillingController, PaymentsController, ChequesController, RecoveryController],
   providers: [
-    NumberingService, ContractsService,
+    NumberingService, ContractsService, LedgerService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],

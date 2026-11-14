@@ -60,9 +60,9 @@ ok(ren.status === 201 && ren.data.startDate === '2027-01-01' && ren.data.status 
 console.log('Excel import');
 const wb = new ExcelJS.Workbook(); const ws = wb.addWorksheet('Tenant Master');
 ws.addRow(['Tenant Name', 'Mobile', 'Building', 'Unit No', 'Contract Start', 'Contract Expiry', 'Monthly Rent', 'Opening Balance', 'VAT Applicable (Y/N)']);
-ws.addRow(['Import Tenant A ' + stamp, '+968 91111111', 'Al Saada Towers', 'A6', new Date(Date.UTC(2026, 9, 1)), '30/09/2027', 300, 150, 'N']);
+ws.addRow(['Import Tenant A ' + stamp, '+968 91111111', 'Al Saada Towers', 'A6-' + stamp, new Date(Date.UTC(2026, 9, 1)), '30/09/2027', 300, 150, 'N']);
 ws.addRow(['Import Tenant B ' + stamp, '', 'New Tower ' + stamp, 'G-01', '2026-11-01', '', 380, -380, 'N']);
-ws.addRow(['', '', 'Al Saada Towers', 'A6', 'not a date', '', 0, '', '']);
+ws.addRow(['', '', 'Al Saada Towers', 'A6-' + stamp, 'not a date', '', 0, '', '']);
 const buf = Buffer.from(await wb.xlsx.writeBuffer());
 const form = () => { const f = new FormData(); f.append('file', new Blob([buf]), 'tenants.xlsx'); return f; };
 const prev = await call('POST', '/imports/tenants', admin, form(), true);

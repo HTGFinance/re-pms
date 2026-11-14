@@ -29,6 +29,7 @@ export enum EContractStatus { DRAFT = 'Draft', SENT = 'Sent to tenant', TENANT_A
 export enum PaymentFrequency { MONTHLY = 'Monthly', QUARTERLY = 'Quarterly', HALF_YEARLY = 'Half-yearly', YEARLY = 'Yearly' }
 export enum PaymentStatus { PENDING = 'Pending', VERIFIED = 'Verified', REJECTED = 'Rejected' }
 export enum PaymentMethod { GATEWAY = 'Online gateway', BANK_TRANSFER = 'Bank transfer', CASH = 'Cash', CHEQUE = 'Cheque', CARD = 'Card (POS)', OPENING = 'Opening advance' }
+export enum ChequeStatus { IN_HAND = 'In hand', DEPOSITED = 'Deposited', CLEARED = 'Cleared', BOUNCED = 'Bounced', REPLACED = 'Replaced', RETURNED = 'Returned to tenant', CANCELLED = 'Cancelled' }
 
 @Entity('buildings')
 export class Building {
@@ -52,7 +53,7 @@ export class Building {
 export class Unit {
   @PrimaryGeneratedColumn('uuid') id: string;
   @ManyToOne(() => Building, (b) => b.units, { nullable: false, onDelete: 'RESTRICT' }) @JoinColumn({ name: 'building_id' }) building: Building;
-  @Column({ name: 'building_id' }) buildingId: string;
+  @Column({ name: 'building_id', type: 'uuid' }) buildingId: string;
   @Column({ name: 'unit_no', length: 30 }) unitNo: string;
   @Column({ name: 'unit_type', length: 60, default: '' }) unitType: string; // Flat 2BHK, Retail Shop, Office, Warehouse…
   @Column({ name: 'listed_rent', ...money }) listedRent: string;
@@ -84,12 +85,14 @@ export class Contract {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Index({ unique: true }) @Column({ name: 'contract_no', length: 20 }) contractNo: string; // CTR-0001
   @ManyToOne(() => Tenant, (t) => t.contracts, { nullable: false }) @JoinColumn({ name: 'tenant_id' }) tenant: Tenant;
-  @Column({ name: 'tenant_id' }) tenantId: string;
+  @Column({ name: 'tenant_id', type: 'uuid' }) tenantId: string;
   @ManyToOne(() => Unit, { nullable: false }) @JoinColumn({ name: 'unit_id' }) unit: Unit;
-  @Index() @Column({ name: 'unit_id' }) unitId: string;
+  @Index() @Column({ name: 'unit_id', type: 'uuid' }) unitId: string;
   @Column({ name: 'start_date', type: 'date' }) startDate: string;
   @Column({ name: 'expiry_date', type: 'date' }) expiryDate: string;
   @Column({ name: 'tenancy_from', type: 'date' }) tenancyFrom: string; // first day of the continuous tenancy (renewals keep it)
+  /** First month the system bills rent for. Imported contracts start billing at go-live (older arrears come in as opening balance). */
+  @Column({ name: 'bill_from', type: 'date', nullable: true }) billFrom: string | null;
   @Column({ name: 'monthly_rent', ...money }) monthlyRent: string;
   @Column({ name: 'security_deposit', ...money }) securityDeposit: string;
   @Column({ name: 'payment_frequency', type: 'enum', enum: PaymentFrequency, default: PaymentFrequency.MONTHLY }) paymentFrequency: PaymentFrequency;
@@ -113,10 +116,11 @@ export class Contract {
 export class Invoice {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Index({ unique: true }) @Column({ name: 'invoice_no', length: 20 }) invoiceNo: string;
-  @Column({ name: 'contract_id' }) contractId: string;
+  @Column({ name: 'contract_id', type: 'uuid' }) contractId: string;
   @ManyToOne(() => Contract) @JoinColumn({ name: 'contract_id' }) contract: Contract;
-  @Index() @Column({ name: 'tenant_id' }) tenantId: string;
-  @Column({ length: 7 }) period: string; // YYYY-MM
+  @Index() @Column({ name: 'tenant_id', type: 'uuid' }) tenantId: string;
+  @Column({ length: 7 }) period: string; // first month covered, YYYY-MM
+  @Column({ type: 'smallint', default: 1 }) months: number; // months covered (3 for quarterly …)
   @Index() @Column({ name: 'due_date', type: 'date' }) dueDate: string;
   @Column(money) rent: string;
   @Column(money) vat: string;
@@ -129,7 +133,7 @@ export class Invoice {
 export class LedgerCharge {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Index({ unique: true }) @Column({ name: 'charge_no', length: 20 }) chargeNo: string;
-  @Index() @Column({ name: 'tenant_id' }) tenantId: string;
+  @Index() @Column({ name: 'tenant_id', type: 'uuid' }) tenantId: string;
   @Column({ type: 'date' }) date: string;
   @Column(money) amount: string;
   @Column({ length: 300 }) description: string;
@@ -141,24 +145,52 @@ export class LedgerCharge {
 export class Payment {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Index({ unique: true }) @Column({ name: 'receipt_no', length: 20 }) receiptNo: string;
-  @Index() @Column({ name: 'tenant_id' }) tenantId: string;
+  @Index() @Column({ name: 'tenant_id', type: 'uuid' }) tenantId: string;
   @Column({ type: 'date' }) date: string;
   @Column(money) amount: string;
   @Column({ type: 'enum', enum: PaymentMethod }) method: PaymentMethod;
   @Column({ length: 100, default: '' }) reference: string;
   @Column({ type: 'enum', enum: PaymentStatus, default: PaymentStatus.PENDING }) status: PaymentStatus;
   @Column({ name: 'attachment', length: 300, default: '' }) attachment: string;
+  @Column({ type: 'text', default: '' }) notes: string;
+  @Column({ name: 'reject_reason', length: 300, default: '' }) rejectReason: string;
+  @Column({ name: 'cheque_id', type: 'uuid', nullable: true }) chequeId: string | null;
   @Column({ name: 'recorded_by', type: 'uuid', nullable: true }) recordedBy: string | null;
   @Column({ name: 'verified_by', type: 'uuid', nullable: true }) verifiedBy: string | null;
   @Column({ name: 'verified_at', type: 'timestamptz', nullable: true }) verifiedAt: Date | null;
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
 }
 
+/** Post-dated cheques received from tenants. A cheque becomes a payment only when it clears. */
+@Entity('cheques')
+@Unique('uq_cheque_bank_no', ['bank', 'chequeNo', 'tenantId'])
+export class Cheque {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Index({ unique: true }) @Column({ name: 'ref_no', length: 20 }) refNo: string; // PDC-00001
+  @Index() @Column({ name: 'tenant_id', type: 'uuid' }) tenantId: string;
+  @Column({ name: 'contract_id', type: 'uuid', nullable: true }) contractId: string | null;
+  @Column({ name: 'cheque_no', length: 30 }) chequeNo: string;
+  @Column({ length: 80 }) bank: string;
+  @Column(money) amount: string;
+  @Index() @Column({ name: 'due_date', type: 'date' }) dueDate: string;
+  @Index() @Column({ type: 'enum', enum: ChequeStatus, default: ChequeStatus.IN_HAND }) status: ChequeStatus;
+  @Column({ name: 'deposited_on', type: 'date', nullable: true }) depositedOn: string | null;
+  @Column({ name: 'cleared_on', type: 'date', nullable: true }) clearedOn: string | null;
+  @Column({ name: 'bounced_on', type: 'date', nullable: true }) bouncedOn: string | null;
+  @Column({ name: 'bounce_reason', length: 200, default: '' }) bounceReason: string;
+  @Column({ name: 'replaced_by', type: 'uuid', nullable: true }) replacedBy: string | null;
+  @Column({ name: 'payment_id', type: 'uuid', nullable: true }) paymentId: string | null;
+  @Column({ name: 'received_by', type: 'uuid', nullable: true }) receivedBy: string | null;
+  @Column({ type: 'text', default: '' }) notes: string;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' }) updatedAt: Date;
+}
+
 @Entity('budgets')
 @Unique('uq_budget_building_period', ['buildingId', 'period'])
 export class Budget {
   @PrimaryGeneratedColumn('uuid') id: string;
-  @Column({ name: 'building_id' }) buildingId: string;
+  @Column({ name: 'building_id', type: 'uuid' }) buildingId: string;
   @ManyToOne(() => Building, { onDelete: 'CASCADE' }) @JoinColumn({ name: 'building_id' }) building: Building;
   @Column({ length: 7 }) period: string; // YYYY-MM
   @Column({ name: 'rental_income', ...money }) rentalIncome: string;
@@ -202,4 +234,4 @@ export class Counter {
   @Column({ type: 'int', default: 0 }) value: number;
 }
 
-export const ENTITIES = [Building, Unit, Tenant, Contract, Invoice, LedgerCharge, Payment, Budget, User, AuditLog, Counter];
+export const ENTITIES = [Building, Unit, Tenant, Contract, Invoice, LedgerCharge, Payment, Cheque, Budget, User, AuditLog, Counter];
