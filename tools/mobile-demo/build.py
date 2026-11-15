@@ -1,7 +1,7 @@
 import json
 import base64
 views=json.load(open('views.json')); css=open('app.css').read()
-B='../../apps/web/public/brand/'
+B='/home/claude/re-pms/apps/web/public/brand/'
 def uri(f): return 'data:image/png;base64,'+base64.b64encode(open(B+f,'rb').read()).decode()
 LOGO, MARK = uri('logo-full.png'), uri('logo-mark.png')
 from PIL import Image
@@ -16,7 +16,8 @@ for k,v in views.items():
     p=v['path']
     if k in ('exec-ytd',): paths['/executive']=k
     elif k=='charts-ytd': paths['/executive?view=charts']=k
-    elif k.startswith(('exec-','charts-','recovery-','maintenance-','complaint-detail')): pass
+    elif k=='invite': paths['/invite']=k
+    elif k.startswith(('exec-','charts-','recovery-','maintenance-','complaint-detail','tenancy-done','tenant-new-detail')): pass
     else: paths.setdefault(p,k)
 data=json.dumps({'mark':MARK,'logo':LOGO,'views':{k:v['html'] for k,v in views.items()},'role':{k:v.get('role') for k,v in views.items()},'paths':paths}).replace('</','<\\/')
 start='''<div class="dstart">
@@ -26,6 +27,8 @@ start='''<div class="dstart">
 <a class="dcard" href="#dashboard"><span class="dic">🏢</span><b>Property &amp; finance portal</b><span>Buildings, tenants, contracts, rent recovery, cheques, maintenance</span></a>
 <a class="dcard" href="#t-home"><span class="dic">📱</span><b>Tenant app</b><span>Rent due, pay, repairs with photos, contract, alerts</span></a>
 <a class="dcard" href="#m-jobs"><span class="dic">🛠</span><b>Technician app</b><span>Jobs for today, directions, updates, costs</span></a>
+<a class="dcard" href="#tenants-new"><span class="dic">📝</span><b>New tenant sign-up (office)</b><span>One form after signing: tenant, ID, passport, photo, documents, flat, rent, payment mode. Creates the app invitation.</span></a>
+<a class="dcard" href="#invite"><span class="dic">🔗</span><b>Tenant invitation (tenant's phone)</b><span>What the tenant sees when they open the link: choose a password, then add the app to the home screen</span></a>
 </div>
 <p class="dnote">Shown with sample data (4 buildings, 94 units, 86 tenants) until the group’s buildings are loaded. Saving, payments and uploads are switched off in this file; they work in the live system.</p>
 </div>'''
@@ -84,9 +87,13 @@ function render(){
   if(k.indexOf('recovery')===0){if(t==='Rent schedule')to='recovery';if(t==='Arrears & follow-up')to='recovery-arrears';if(/^Verification queue/.test(t))to='recovery-verify';if(t==='All payments')b.dataset.msg='payment history is in the full system.';}
   if(k.indexOf('maintenance')===0){if(t==='This month')to='maintenance';if(t==='Year to date')to='maintenance-ytd';}
   if(k==='complaint-detail'&&(t==='×'||t==='Close'||t==='Cancel'))to='complaints';
+  if(k==='tenants-new'&&t==='Create tenancy')to='tenancy-done';
+  if(k==='tenancy-done'&&t==='+ Another tenancy')to='tenants-new';
+  if(k==='invite'&&t==='Activate my app')to='t-welcome';
   if(b.classList.contains('mbtn')||b.classList.contains('mclose'))return;
   if(/^Sign out$/.test(t)){to='start'}
   if(to)b.dataset.v=to;});
+ if(k==='tenancy-done')root.querySelectorAll('a[href="#tenant-detail"]').forEach(function(a){a.setAttribute('href','#tenant-new-detail')});
  root.querySelectorAll('a').forEach(function(a){if(a.textContent.trim()==='Sign out'){a.setAttribute('href','#start');a.removeAttribute('data-off')}});
  if(k==='complaints'||k==='tenants')root.querySelectorAll('tr.clickable').forEach(function(r){r.dataset.v=k==='complaints'?'complaint-detail':'tenant-detail'});
 }

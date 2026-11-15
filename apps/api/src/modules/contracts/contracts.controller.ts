@@ -1,6 +1,6 @@
 import { BadRequestException, Body, ConflictException, Controller, ForbiddenException, Get, HttpCode, Injectable, NotFoundException, OnModuleDestroy, OnModuleInit, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsBoolean, IsEnum, IsInt, IsNumberString, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsEnum, IsIn, IsInt, IsNumberString, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min } from 'class-validator';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Contract, ContractStatus, EContractStatus, PaymentFrequency, Role, Tenant, Unit } from '../../database/entities';
 import { AuthUser, buildingScope, CurrentUser, Roles } from '../../common/auth';
@@ -14,11 +14,12 @@ export const VAT_RATE = '0.0500';
 /** Municipality registration fee on annual rent. Confirm the current rate per municipality. */
 export const MUNICIPALITY_FEE_RATE = Number(process.env.MUNICIPALITY_FEE_RATE || '0.03');
 
-class CreateContractDto {
+export const PAYMENT_MODES = ['Bank transfer', 'Cheque (PDC)', 'Cash', 'Online gateway'];
+export class CreateContractDto {
   @IsUUID() tenantId: string; @IsUUID() unitId: string;
   @Matches(DATE) startDate: string; @IsOptional() @Matches(DATE) expiryDate?: string; @IsOptional() @Matches(DATE) tenancyFrom?: string;
   @IsNumberString() monthlyRent: string; @IsOptional() @IsNumberString() securityDeposit?: string;
-  @IsOptional() @IsEnum(PaymentFrequency) paymentFrequency?: PaymentFrequency;
+  @IsOptional() @IsEnum(PaymentFrequency) paymentFrequency?: PaymentFrequency; @IsOptional() @IsIn(PAYMENT_MODES) paymentMode?: string;
   @IsOptional() @IsInt() @Min(1) @Max(28) rentDueDay?: number; @IsOptional() @IsInt() @Min(0) @Max(12) noticeMonths?: number;
   @IsOptional() @IsBoolean() vatApplicable?: boolean; @IsOptional() @IsBoolean() asDraft?: boolean; @IsOptional() @IsString() @MaxLength(2000) notes?: string;
   /** First day rent is billed. Default: the later of the start date and the 1st of the current month (older rent = opening balance). */
@@ -80,7 +81,7 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
       startDate: d.startDate, expiryDate: expiry, tenancyFrom: d.tenancyFrom || d.startDate,
       billFrom: d.billFrom ? (d.billFrom < d.startDate ? d.startDate : d.billFrom) : (d.startDate > todayOman().slice(0, 8) + '01' ? d.startDate : todayOman().slice(0, 8) + '01'),
       monthlyRent: omr(d.monthlyRent), securityDeposit: omr(d.securityDeposit ?? d.monthlyRent),
-      paymentFrequency: d.paymentFrequency ?? PaymentFrequency.MONTHLY, rentDueDay: d.rentDueDay ?? 1,
+      paymentFrequency: d.paymentFrequency ?? PaymentFrequency.MONTHLY, paymentMode: d.paymentMode ?? 'Bank transfer', rentDueDay: d.rentDueDay ?? 1,
       noticeMonths: d.noticeMonths ?? (vat ? 3 : 1), vatRate: vat ? VAT_RATE : '0',
       status: d.asDraft ? ContractStatus.DRAFT : this.statusFor(d.startDate, expiry), notes: d.notes ?? '',
     }));

@@ -2,23 +2,27 @@ import { BadRequestException, Body, ConflictException, Controller, ForbiddenExce
 import { randomInt } from 'crypto';
 import * as bcrypt from 'bcryptjs';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsEmail, IsEnum, IsOptional, IsString, Length, MaxLength, ValidateIf } from 'class-validator';
+import { IsEmail, IsEnum, Matches, IsOptional, IsString, Length, MaxLength, ValidateIf } from 'class-validator';
 import { DataSource, Repository } from 'typeorm';
 import { Role, Tenant, TenantStatus, User } from '../../database/entities';
 import { AuthUser, buildingScope, CurrentUser, Roles } from '../../common/auth';
 import { NumberingService } from '../../common/numbering.service';
 
-class TenantDto {
+export class TenantDto {
   @IsString() @Length(1, 200) name: string; @IsOptional() @IsString() @MaxLength(30) mobile?: string;
   @IsOptional() @ValidateIf((o) => !!o.email) @IsEmail() email?: string; @IsOptional() @IsString() @MaxLength(60) idType?: string;
   @IsOptional() @IsString() @MaxLength(60) idNumber?: string; @IsOptional() @IsString() @MaxLength(60) nationality?: string;
   @IsOptional() @IsEnum(TenantStatus) status?: TenantStatus;
+  @IsOptional() @ValidateIf((o) => !!o.idExpiry) @Matches(/^\d{4}-\d{2}-\d{2}$/) idExpiry?: string | null; @IsOptional() @IsString() @MaxLength(60) passportNo?: string;
+  @IsOptional() @ValidateIf((o) => !!o.passportExpiry) @Matches(/^\d{4}-\d{2}-\d{2}$/) passportExpiry?: string | null;
 }
 class UpdateTenantDto {
   @IsOptional() @IsString() @Length(1, 200) name?: string; @IsOptional() @IsString() @MaxLength(30) mobile?: string;
   @IsOptional() @ValidateIf((o) => !!o.email) @IsEmail() email?: string; @IsOptional() @IsString() @MaxLength(60) idType?: string;
   @IsOptional() @IsString() @MaxLength(60) idNumber?: string; @IsOptional() @IsString() @MaxLength(60) nationality?: string;
   @IsOptional() @IsEnum(TenantStatus) status?: TenantStatus;
+  @IsOptional() @ValidateIf((o) => !!o.idExpiry) @Matches(/^\d{4}-\d{2}-\d{2}$/) idExpiry?: string | null; @IsOptional() @IsString() @MaxLength(60) passportNo?: string;
+  @IsOptional() @ValidateIf((o) => !!o.passportExpiry) @Matches(/^\d{4}-\d{2}-\d{2}$/) passportExpiry?: string | null;
 }
 class LoginDto { @IsOptional() @ValidateIf((o) => !!o.email) @IsEmail() email?: string }
 /** Readable temporary password, e.g. 'Hk7m-Qp3x-Zr9t' (no look-alike characters). */

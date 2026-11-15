@@ -4,7 +4,7 @@ import { IsBoolean, IsEnum, IsIn, IsInt, IsOptional, IsString, IsUUID, Length, M
 import { Response } from 'express';
 import { DataSource } from 'typeorm';
 import { Attachment, Complaint, ComplaintStatus as S, MaintenanceCategory, NoticeStatus, Payment, Priority, Role, Unit, User, VacateNotice } from '../../database/entities';
-import { AuthUser, buildingScope, CurrentUser, Roles } from '../../common/auth';
+import { assertTenantAccess, AuthUser, buildingScope, CurrentUser, Roles } from '../../common/auth';
 import { FilesService, MAX_FILE_BYTES } from '../../common/files.service';
 import { NotifyService } from '../../common/notify.service';
 import { NumberingService } from '../../common/numbering.service';
@@ -155,6 +155,9 @@ export class ComplaintsController {
     } else if (a.ownerType === 'payment') {
       const p = await this.ds.getRepository(Payment).findOneBy({ id: a.ownerId });
       if (!p || (u.role === Role.TENANT ? p.tenantId !== u.tenantId : ![Role.ADMIN, Role.FINANCE, Role.RECOVERY].includes(u.role))) throw new ForbiddenException();
+    } else if (a.ownerType === 'tenant') {
+      await assertTenantAccess(this.ds, u, a.ownerId);
+      if ([Role.TECHNICIAN].includes(u.role) || (u.role === Role.TENANT && a.kind !== 'photo')) throw new ForbiddenException();
     } else if (u.role === Role.TENANT) throw new ForbiddenException();
     res.setHeader('Content-Type', a.mime); res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(a.originalName)}"`); res.setHeader('X-Content-Type-Options', 'nosniff');
     this.files.stream(a).pipe(res);

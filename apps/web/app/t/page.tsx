@@ -1,13 +1,20 @@
 'use client';
 import Link from 'next/link';
 import { useTenant } from '@/components/TenantShell';
+import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
+import InstallApp from '@/components/InstallApp';
 import { fmtDate, omr } from '@/lib/api';
+
+function Welcome() { const w = useSearchParams().get('welcome'); if (!w) return null;
+  return <div className="tcard welcome"><h4>Your app is ready 🎉</h4><div className="small muted">Add it to your home screen so it opens like any other app.</div><InstallApp /></div>; }
 
 export default function THome() {
   const { home } = useTenant(); if (!home) return <div className="empty">Loading…</div>;
   const a = home.account; const c = home.contracts.find((x: any) => x.status === 'Active') || home.contracts[0];
   const days = c ? Math.round((new Date(c.expiryDate).getTime() - Date.now()) / 864e5) : null;
   return <>
+    <Suspense fallback={null}><Welcome /></Suspense>
     {home.toAccept.length > 0 && <Link className="tlink" href="/t/flat"><div className="note" style={{ marginBottom: 12 }}>Your lease contract is ready. <b>Review and accept it →</b></div></Link>}
     {home.complaintsToConfirm > 0 && <Link className="tlink" href="/t/complaints"><div className="info" style={{ marginBottom: 12 }}>{home.complaintsToConfirm} complaint(s) completed — <b>please confirm if the problem is solved →</b></div></Link>}
     <div className="tcard"><div className="small muted">Total payable</div><div className="tbig" style={{ color: Number(a.balance) > 0 ? 'var(--navy)' : 'var(--green)' }}>{omr(Math.max(0, Number(a.balance)))}</div>

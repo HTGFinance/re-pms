@@ -72,6 +72,9 @@ After the first sign-in: change the admin password, create staff users under **U
 | `CORS_ORIGIN` | The portal's public address, e.g. `https://pms.yourcompany.om`. |
 | `MUNICIPALITY_FEE_RATE` | Lease registration fee on annual rent (default `0.03` = 3%). Confirm the current rate. |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First admin login, used only by the seed step. |
+| `APP_URL` | Public address used in tenant invitation links. |
+| `INVITE_EXPIRY_DAYS` | Days an invitation link stays valid (default 7). |
+| `SMTP_*` | Email server for sending invitations automatically. Without it, staff send the link by WhatsApp, SMS or QR code. |
 
 ### Backups
 
@@ -184,7 +187,10 @@ apps/web
 
 ## Tenant app and complaints
 
-- **Tenant logins.** On a tenant's page, a property manager clicks *Create login*. The tenant's email is the login; a temporary password is shown once and must be replaced at first sign-in. The tenant app is the same web address (it opens at `/t` for tenants) and is designed for phones.
+- **New tenancy.** After the contract is signed, a property manager opens *Tenants → + New tenancy* and fills one form: tenant details (name, mobile, email, nationality, civil ID / resident card and expiry, passport and expiry), tenant photo and documents (passport, civil ID, signed contract, other), property and vacant unit, and contract terms (start, end, rent, deposit, payment frequency, payment mode, due day, notice period). Rent, deposit and notice fill in from the unit. Saving creates the tenant, the contract and the first rent invoices in one step, so the figures appear on every dashboard at once.
+- **Invitation to the app.** Saving can also create a one-time invitation link. It is emailed automatically when `SMTP_*` is set, and staff can also send it by WhatsApp or SMS from their own phone, let the tenant scan the QR code at the desk, or print a welcome letter (English and Arabic) with the QR code. The link is valid for `INVITE_EXPIRY_DAYS`, works once, and a new link cancels the old one. The tenant opens it, chooses their own password (and adds an email if none was recorded), is signed in, and is shown how to add the app to the home screen. No app store is needed.
+- **Fallback.** On the tenant's page staff can still issue a temporary password instead of a link. The tenant's page shows the app status: Not invited, Invited, Expired, Temporary password or Active.
+- **Staff logins** (maintenance supervisor, technicians, recovery, finance) are created by the admin under *Users & roles*.
 - **Complaints.** Tenants pick a category (Repair, Replacement, Service, Cleaning, Painting, Flat / unit, Other — admin can change the list), describe the problem, add up to 5 photos and a preferred visit time. The flat is filled in from their contract.
 - **Workflow.** New → Reviewed → Technician assigned → Work in progress (or Awaiting materials / approval) → Work completed → Tenant confirmation pending → Closed. Assigning a technician moves it to *Technician assigned*. When work is marked completed, the tenant is asked to confirm: *Yes, solved* (with an optional 1–5 star rating) closes it; *No* reopens it for review. Unanswered complaints close automatically after `COMPLAINT_AUTO_CLOSE_DAYS` (7).
 - **What tenants see.** Simple status names, the progress steps, notes the team shares, and before/after photos. Internal notes, internal files and priority are staff-only.
@@ -221,7 +227,7 @@ apps/web
 
 ## API overview
 
-All routes are under `/api` and need a login except `/health` and `/auth/login`.
+All routes are under `/api` and need a login except `/health`, `/auth/login` and the two `/invite` routes.
 
 | Method & path | Purpose |
 |---|---|
@@ -239,6 +245,10 @@ All routes are under `/api` and need a login except `/health` and `/auth/login`.
 | `GET /cheques` · `POST /cheques/series` · `/:id/deposit` · `/clear` · `/bounce` · `/replace` · `/return` | Cheque register |
 | `GET /recovery/schedule?period=YYYY-MM` · `/recovery/arrears` · `/recovery/summary` | Recovery reports |
 | `POST /tenants/:id/login` | Create or reset a tenant's app login (temporary password) |
+| `GET /tenancies/options` · `POST /tenancies` | New tenancy: tenant and contract in one step |
+| `GET/POST /tenants/:id/files?kind=` · `DELETE /tenant-files/:id` | Tenant photo and documents |
+| `POST /tenants/:id/invite` · `GET /tenants/:id/invitation` | Send an invitation link; app status |
+| `GET /invite?token=` · `POST /invite/accept` | Public: open an invitation and set a password |
 | `GET/POST /complaints` · `PATCH /complaints/:id` · `POST /complaints/:id/status` · `/notes` · `/files` · `GET /complaints/summary` | Complaints (staff) |
 | `GET/POST/PATCH /maintenance-categories` | Complaint categories (admin) |
 | `GET /notices` · `PATCH /notices/:id` | Notices to vacate (staff) |

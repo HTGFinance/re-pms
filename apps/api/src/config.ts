@@ -15,6 +15,10 @@ export const config = {
   corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(','),
   cookieSecure: process.env.COOKIE_SECURE === 'true',
   timeZone: 'Asia/Muscat',
+  /** Public address of the app (e.g. https://properties.example.om) — used in tenant invitation links. */
+  appUrl: (process.env.APP_URL || '').replace(/\/$/, ''),
+  inviteDays: parseInt(process.env.INVITE_EXPIRY_DAYS || '7', 10),
+  smtp: { host: process.env.SMTP_HOST || '', port: parseInt(process.env.SMTP_PORT || '587', 10), secure: process.env.SMTP_SECURE === 'true', user: process.env.SMTP_USER || '', pass: process.env.SMTP_PASS || '', from: process.env.SMTP_FROM || '' },
 };
 if (process.env.NODE_ENV === 'production' && config.jwtSecret === 'change-me-in-production') {
   throw new Error('JWT_SECRET must be set in production');

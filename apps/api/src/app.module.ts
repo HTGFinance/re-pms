@@ -28,6 +28,8 @@ import { ComplaintsController } from './modules/complaints/complaints.controller
 import { MeController } from './modules/me/me.controller';
 import { MaintenanceController } from './modules/maintenance/maintenance.controller';
 import { ExecutiveController } from './modules/executive/executive.controller';
+import { OnboardingController } from './modules/onboarding/onboarding.controller';
+import { MailService } from './common/mail.service';
 
 @Controller('health')
 class HealthController { @Public() @Get() ok() { return { status: 'ok', time: new Date().toISOString() }; } }
@@ -38,9 +40,9 @@ class HealthController { @Public() @Get() ok() { return { status: 'ok', time: ne
     TypeOrmModule.forFeature(ENTITIES),
     JwtModule.register({ global: true, secret: config.jwtSecret, signOptions: { expiresIn: config.jwtExpiresIn as any } }),
   ],
-  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController, BillingController, PaymentsController, ChequesController, RecoveryController, ComplaintsController, MeController, MaintenanceController, ExecutiveController],
+  controllers: [HealthController, AuthController, UsersController, PropertiesController, TenantsController, ContractsController, ImportsController, DashboardController, AuditController, BillingController, PaymentsController, ChequesController, RecoveryController, ComplaintsController, MeController, MaintenanceController, ExecutiveController, OnboardingController],
   providers: [
-    NumberingService, ContractsService, LedgerService, FilesService, NotifyService, ComplaintsService,
+    NumberingService, ContractsService, LedgerService, FilesService, NotifyService, ComplaintsService, MailService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
   ],

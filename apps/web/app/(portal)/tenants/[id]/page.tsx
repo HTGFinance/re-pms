@@ -8,6 +8,9 @@ import { api, can, fmtDate, omr } from '@/lib/api';
 import { TenantForm } from '../page';
 import { ChargeForm, ChequeSeriesForm, Money, PaymentForm, Receipt } from '@/components/finance';
 import { num3 } from '@/lib/api';
+import InviteCard from '@/components/InviteCard';
+
+const DOC_LABEL: Record<string, string> = { photo: 'Photo', passport: 'Passport', 'civil-id': 'Civil ID', contract: 'Signed contract', other: 'Other' };
 
 export default function TenantDetail() {
   const { id } = useParams<{ id: string }>(); const me = useMe(); const edit = can(me, 'PROPERTY_MANAGER');
@@ -21,6 +24,13 @@ export default function TenantDetail() {
   const reloadMoney = () => { L.reload(); Q.reload(); P.reload(); };
   const LG = useLoad(() => edit ? api(`/tenants/${id}/login`) : Promise.resolve(null), [id]);
   const [pwInfo, setPwInfo] = useState<any>(null); const [lgErr, setLgErr] = useState('');
+  const IV = useLoad(() => edit || can(me, 'EXECUTIVE', 'FINANCE') ? api(`/tenants/${id}/invitation`) : Promise.resolve(null), [id]);
+  const F = useLoad(() => can(me, 'PROPERTY_MANAGER', 'FINANCE', 'RECOVERY', 'EXECUTIVE', 'MAINTENANCE_SUPERVISOR') ? api<any[]>(`/tenants/${id}/files`) : Promise.resolve([]), [id]);
+  const [inv, setInv] = useState<any>(null); const [ivBusy, setIvBusy] = useState(false); const [fErr, setFErr] = useState(''); const [docKind, setDocKind] = useState('passport');
+  const sendInvite = async () => { setLgErr(''); setIvBusy(true); try { setInv(await api(`/tenants/${id}/invite`, { body: {} })); IV.reload(); } catch (x: any) { setLgErr(x.message); } finally { setIvBusy(false); } };
+  const upload = async (kind: string, files: FileList | null) => { if (!files?.length) return; setFErr(''); const f = new FormData(); Array.from(files).forEach((x) => f.append('files', x)); try { await api(`/tenants/${id}/files?kind=${kind}`, { form: f }); F.reload(); } catch (x: any) { setFErr(x.message); } };
+  const delFile = async (fid: string) => { if (!confirm('Remove this file?')) return; try { await api(`/tenant-files/${fid}`, { method: 'DELETE' }); F.reload(); } catch (x: any) { setFErr(x.message); } };
+  const photo = F.data?.find((x) => x.kind === 'photo');
   const makeLogin = async () => { setLgErr(''); try { setPwInfo(await api(`/tenants/${id}/login`, { body: {} })); LG.reload(); } catch (x: any) { setLgErr(x.message); } };
   const CP = useLoad(() => can(me, 'MAINTENANCE_SUPERVISOR', 'PROPERTY_MANAGER', 'EXECUTIVE') ? api<any[]>(`/complaints?tenantId=${id}`) : Promise.resolve([]), [id]);
   const t = T.data;
@@ -29,7 +39,9 @@ export default function TenantDetail() {
     <div id="view"><Err msg={T.error} />
       {t && <div className="grid c2">
         <div className="card"><h3>Profile</h3>
-          {[['Tenant no.', t.tenantNo], ['Mobile', t.mobile], ['Email', t.email], [t.idType || 'ID', t.idNumber], ['Nationality', t.nationality], ['Status', <Pill key="s" s={t.status} />], ['Created', fmtDate(t.createdAt)]].map(([k, v]: any) =>
+          <div className="prof">{photo ? <img src={`/api/files/${photo.id}`} alt={`Photo of ${t.name}`} /> : <span className="prof-ph">{t.name.split(' ').map((w: string) => w[0]).slice(0, 2).join('')}</span>}
+            <div><b style={{ fontSize: 16 }}>{t.name}</b><div className="small muted">{t.tenantNo}{t.nationality ? ' · ' + t.nationality : ''}</div>{edit && <label className="small linkish">{photo ? 'Change photo' : 'Add photo'}<input type="file" accept="image/*" capture="user" hidden onChange={(e) => upload('photo', e.target.files)} /></label>}</div></div>
+          {[['Mobile', t.mobile], ['Email', t.email], [t.idType || 'ID', t.idNumber ? `${t.idNumber}${t.idExpiry ? ' · expires ' + fmtDate(t.idExpiry) : ''}` : ''], ['Passport', t.passportNo ? `${t.passportNo}${t.passportExpiry ? ' · expires ' + fmtDate(t.passportExpiry) : ''}` : ''], ['Status', <Pill key="s" s={t.status} />], ['Created', fmtDate(t.createdAt)]].map(([k, v]: any) =>
             <div className="line" key={k}><span className="muted">{k}</span><b>{v || '—'}</b></div>)}</div>
         {L.data ? <div className="card"><h3>Account <span className="row">{can(me, 'RECOVERY', 'FINANCE', 'PROPERTY_MANAGER') && <><button className="sm primary" onClick={() => setModal('pay')}>Record payment</button><button className="sm" onClick={() => setModal('chq')}>Receive cheques</button></>}{can(me, 'FINANCE', 'PROPERTY_MANAGER') && <button className="sm" onClick={() => setModal('chg')}>Charge / credit</button>}</span></h3>
           <div className="due" style={{ marginBottom: 10 }}><div className="small muted">Balance owed</div><div className="big" style={{ color: Number(L.data.balance) > 0 ? 'var(--red)' : 'var(--green)' }}>{omr(L.data.balance)}</div>
@@ -40,16 +52,30 @@ export default function TenantDetail() {
           {L.data.pendingPayments.length > 0 && <div className="note" style={{ marginTop: 8 }}>{L.data.pendingPayments.length} payment(s) of {omr(L.data.pendingPayments.reduce((s: number, p: any) => s + Number(p.amount), 0))} awaiting verification — not yet in the balance.</div>}
         </div> : <div className="card"><h3>Account</h3><div className="muted small">Not available for your role.</div></div>}
       </div>}
-      {edit && <div className="card" style={{ marginTop: 14 }}><h3>Tenant app login {LG.data?.exists ? <span className="pill p-green">Active</span> : <span className="pill p-gray">None</span>}</h3><Err msg={lgErr} />
-        {LG.data?.exists ? <div className="small">Login: <b>{LG.data.email}</b> · {LG.data.mustChangePassword ? 'has not signed in yet' : `last sign-in ${fmtDate(LG.data.lastLoginAt)}`}</div> : <div className="small muted">Create a login so the tenant can pay, raise complaints and follow them in the tenant app. Their email address is the login.</div>}
-        {pwInfo && <div className="note" style={{ marginTop: 8 }}>Temporary password for <b>{pwInfo.email}</b>: <b style={{ fontSize: 16, letterSpacing: 1 }}>{pwInfo.temporaryPassword}</b><br />Give it to the tenant privately — it is shown only once. They choose their own password at first sign-in.</div>}
-        <button className="sm" style={{ marginTop: 8 }} onClick={makeLogin}>{LG.data?.exists ? 'Reset password' : 'Create login'}</button></div>}
+      {t && <div className="grid c2" style={{ marginTop: 14 }}>
+        {IV.data && <div className="card"><h3>Tenant app <span className={`pill ${IV.data.state === 'Active' ? 'p-green' : IV.data.state === 'Invited' ? 'p-amber' : IV.data.state === 'Expired' ? 'p-red' : 'p-gray'}`}>{IV.data.state}</span></h3><Err msg={lgErr} />
+          {IV.data.login && <div className="line"><span className="muted">Signs in with</span><b>{IV.data.login.email}</b></div>}
+          {IV.data.login?.lastLoginAt && <div className="line"><span className="muted">Last sign-in</span><b>{fmtDate(String(IV.data.login.lastLoginAt).slice(0, 10))}</b></div>}
+          {IV.data.sentAt && <div className="line"><span className="muted">Last invitation</span><b>{fmtDate(String(IV.data.sentAt).slice(0, 10))}{IV.data.emailedTo ? ' · emailed' : ''}{IV.data.state === 'Invited' ? ` · valid to ${fmtDate(String(IV.data.expiresAt).slice(0, 10))}` : ''}</b></div>}
+          {IV.data.state !== 'Active' && <div className="small muted" style={{ margin: '6px 0' }}>Send a one-time link by WhatsApp, SMS or email, or let the tenant scan the QR code here in the office.</div>}
+          {edit && <div className="row" style={{ marginTop: 8 }}><button className="primary sm" onClick={sendInvite} disabled={ivBusy}>{ivBusy ? 'Creating…' : IV.data.state === 'Not invited' ? 'Send app invitation' : IV.data.state === 'Active' ? 'Send a new link (reset password)' : 'Send a new link'}</button>
+            <button className="sm" onClick={makeLogin} title="Fallback when the tenant has no phone or email access">Temporary password instead</button></div>}
+          {pwInfo && <div className="note" style={{ marginTop: 8 }}>Temporary password for <b>{pwInfo.email}</b>: <b style={{ fontSize: 16, letterSpacing: 1 }}>{pwInfo.temporaryPassword}</b><br />Give it to the tenant privately — it is shown only once.</div>}
+        </div>}
+        <div className="card"><h3>Documents <span className="small muted" style={{ fontWeight: 400 }}>{F.data?.filter((x) => x.kind !== 'photo').length || 0} file(s)</span></h3><Err msg={fErr} />
+          {F.data?.filter((x) => x.kind !== 'photo').map((f) => <div className="line" key={f.id}><span><span className="pill p-gray">{DOC_LABEL[f.kind] || f.kind}</span> <a href={`/api/files/${f.id}`} target="_blank" rel="noreferrer">{f.originalName}</a></span>
+            <span className="row"><span className="small muted">{fmtDate(String(f.createdAt).slice(0, 10))}</span>{edit && <button className="sm danger" onClick={() => delFile(f.id)} aria-label={`Remove ${f.originalName}`}>×</button>}</span></div>)}
+          {!F.data?.filter((x) => x.kind !== 'photo').length && <div className="small muted">No documents yet.</div>}
+          {edit && <div className="row" style={{ marginTop: 10 }}><select value={docKind} onChange={(e) => setDocKind(e.target.value)} style={{ width: 'auto' }}>{['passport', 'civil-id', 'contract', 'other'].map((k) => <option key={k} value={k}>{DOC_LABEL[k]}</option>)}</select>
+            <label className="btn sm" style={{ cursor: 'pointer' }}>Upload file<input type="file" accept="image/*,application/pdf" multiple hidden onChange={(e) => { upload(docKind, e.target.files); e.target.value = ''; }} /></label></div>}
+        </div>
+      </div>}
       {(CP.data?.length ?? 0) > 0 && <><div className="sec">Complaints</div><div className="card tw"><table><thead><tr><th>Ref</th><th>Reported</th><th>Problem</th><th>Status</th></tr></thead>
         <tbody>{CP.data!.map((c: any) => <tr key={c.id}><td><Link href="/complaints">{c.refNo}</Link></td><td>{fmtDate(c.reportedAt)}</td><td>{c.title || c.subcategory}<div className="small muted">{c.category}</div></td><td>{c.status}</td></tr>)}</tbody></table></div></>}
       <div className="sec">Contracts</div>
-      <div className="card tw">{t?.contracts?.length ? <table><thead><tr><th>Contract</th><th>Unit</th><th>Term</th><th className="n">Monthly rent</th><th className="n">Deposit</th><th>VAT</th><th>Status</th><th>E-contract</th><th>Municipality reg.</th></tr></thead>
+      <div className="card tw">{t?.contracts?.length ? <table><thead><tr><th>Contract</th><th>Unit</th><th>Term</th><th className="n">Monthly rent</th><th className="n">Deposit</th><th>Pays by</th><th>VAT</th><th>Status</th><th>E-contract</th><th>Municipality reg.</th></tr></thead>
         <tbody>{t.contracts.map((c: any) => <tr key={c.id}><td><Link href={`/contracts?id=${c.id}`}><b>{c.contractNo}</b></Link></td><td>{c.unit.building.name} {c.unit.unitNo}</td><td>{fmtDate(c.startDate)} – {fmtDate(c.expiryDate)}</td>
-          <td className="n">{omr(c.monthlyRent)}</td><td className="n">{omr(c.securityDeposit)}</td><td>{Number(c.vatRate) ? '5%' : 'Exempt'}</td><td><Pill s={c.status} /></td><td><Pill s={c.eStatus} /></td><td>{c.municipalityRegNo || '—'}</td></tr>)}</tbody></table>
+          <td className="n">{omr(c.monthlyRent)}</td><td className="n">{omr(c.securityDeposit)}</td><td>{c.paymentFrequency} · {c.paymentMode}</td><td>{Number(c.vatRate) ? '5%' : 'Exempt'}</td><td><Pill s={c.status} /></td><td><Pill s={c.eStatus} /></td><td>{c.municipalityRegNo || '—'}</td></tr>)}</tbody></table>
         : <div className="empty">No contracts yet.</div>}</div>
       {L.data && <>
         <div className="sec">Statement</div>
@@ -69,6 +95,7 @@ export default function TenantDetail() {
     {modal === 'chq' && t && <ChequeSeriesForm tenant={{ id: t.id, name: t.name }} onClose={() => setModal('')} onSaved={() => { setModal(''); reloadMoney(); }} />}
     {modal === 'chg' && t && <ChargeForm tenant={{ id: t.id, name: t.name }} canCredit={can(me, 'FINANCE')} onClose={() => setModal('')} onSaved={() => { setModal(''); reloadMoney(); }} />}
     {receipt && <Receipt id={receipt} onClose={() => setReceipt(null)} />}
+    {inv && <Modal title="Tenant app invitation" onClose={() => setInv(null)}><InviteCard inv={inv} /></Modal>}
     {editing && t && <TenantForm t={t} onClose={() => setEditing(false)} onSaved={() => { setEditing(false); T.reload(); }} />}
     {newC && t && <ContractForm tenantId={t.id} onClose={() => setNewC(false)} onSaved={() => { setNewC(false); T.reload(); }} />}
   </>;

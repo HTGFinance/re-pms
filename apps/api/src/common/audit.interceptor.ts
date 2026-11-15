@@ -3,7 +3,7 @@ import { DataSource } from 'typeorm';
 import { Observable, tap } from 'rxjs';
 import { AuditLog } from '../database/entities';
 
-const REDACT = ['password', 'newPassword', 'currentPassword'];
+const REDACT = ['password', 'newPassword', 'currentPassword', 'token'];
 const clean = (b: any) => {
   if (!b || typeof b !== 'object') return null;
   const o: any = Array.isArray(b) ? [...b] : { ...b };

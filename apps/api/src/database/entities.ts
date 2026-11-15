@@ -81,6 +81,9 @@ export class Tenant {
   @Column({ name: 'id_type', length: 60, default: '' }) idType: string;
   @Column({ name: 'id_number', length: 60, default: '' }) idNumber: string;
   @Column({ length: 60, default: '' }) nationality: string;
+  @Column({ name: 'id_expiry', type: 'date', nullable: true }) idExpiry: string | null;
+  @Column({ name: 'passport_no', length: 60, default: '' }) passportNo: string;
+  @Column({ name: 'passport_expiry', type: 'date', nullable: true }) passportExpiry: string | null;
   @Column({ type: 'enum', enum: TenantStatus, default: TenantStatus.ACTIVE }) status: TenantStatus;
   @OneToMany(() => Contract, (c) => c.tenant) contracts: Contract[];
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
@@ -104,6 +107,8 @@ export class Contract {
   @Column({ name: 'security_deposit', ...money }) securityDeposit: string;
   @Column({ name: 'payment_frequency', type: 'enum', enum: PaymentFrequency, default: PaymentFrequency.MONTHLY }) paymentFrequency: PaymentFrequency;
   @Column({ name: 'rent_due_day', type: 'smallint', default: 1 }) rentDueDay: number;
+  /** How the tenant will pay: Bank transfer, Cheque (PDC), Cash, Online gateway. */
+  @Column({ name: 'payment_mode', length: 30, default: 'Bank transfer' }) paymentMode: string;
   @Column({ name: 'notice_months', type: 'smallint', default: 1 }) noticeMonths: number;
   @Column({ name: 'vat_rate', type: 'numeric', precision: 5, scale: 4, default: 0 }) vatRate: string; // 0.0500 = 5%
   @Column({ type: 'enum', enum: ContractStatus, default: ContractStatus.DRAFT }) status: ContractStatus;
@@ -261,6 +266,20 @@ export class Attachment {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
 }
 
+/** One-time link that lets a new tenant set up the tenant app (token stored only as a SHA-256 hash). */
+@Entity('invitations')
+export class Invitation {
+  @PrimaryGeneratedColumn('uuid') id: string;
+  @Index() @Column({ name: 'tenant_id', type: 'uuid' }) tenantId: string;
+  @Index({ unique: true }) @Column({ name: 'token_hash', length: 64 }) tokenHash: string;
+  @Column({ name: 'expires_at', type: 'timestamptz' }) expiresAt: Date;
+  @Column({ name: 'used_at', type: 'timestamptz', nullable: true }) usedAt: Date | null;
+  @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true }) revokedAt: Date | null;
+  @Column({ name: 'emailed_to', length: 150, default: '' }) emailedTo: string;
+  @Column({ name: 'created_by', type: 'uuid', nullable: true }) createdBy: string | null;
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt: Date;
+}
+
 /** In-app notifications (SMS / WhatsApp delivery is added in phase 6). */
 @Entity('notifications')
 export class Notification {
@@ -374,4 +393,4 @@ export class Counter {
 }
 
 export const ENTITIES = [Building, Unit, Tenant, Contract, Invoice, LedgerCharge, Payment, Cheque, Budget, User, AuditLog, Counter,
-  MaintenanceCategory, Complaint, ComplaintEvent, Attachment, Notification, VacateNotice, MaintenanceCost];
+  MaintenanceCategory, Complaint, ComplaintEvent, Attachment, Notification, VacateNotice, MaintenanceCost, Invitation];
