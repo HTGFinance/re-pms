@@ -1,6 +1,10 @@
 import json
 import base64
+import sys
+MODE=sys.argv[1] if len(sys.argv)>1 else 'all'
 views=json.load(open('views.json')); css=open('app.css').read()
+ROLES={'dashboard':('exec','pm'),'app':('tenant','tech')}.get(MODE)
+if ROLES: views={k:v for k,v in views.items() if v.get('role') in ROLES}
 B='/home/claude/re-pms/apps/web/public/brand/'
 def uri(f): return 'data:image/png;base64,'+base64.b64encode(open(B+f,'rb').read()).decode()
 LOGO, MARK = uri('logo-full.png'), uri('logo-mark.png')
@@ -32,9 +36,23 @@ start='''<div class="dstart">
 </div>
 <p class="dnote">Shown with sample data (4 buildings, 94 units, 86 tenants) until the group’s buildings are loaded. Saving, payments and uploads are switched off in this file; they work in the live system.</p>
 </div>'''
+HERO_END='</p></div>'
+if MODE=='dashboard':
+    start=start.replace('Executive dashboard, staff portal, tenant app and technician app. Pick a view to open it on your phone, tablet or computer.','Executive dashboard and staff portal for owners, management, property, finance and recovery teams. Opens on computer, tablet and phone.')
+    import re
+    start=re.sub(r'<a class="dcard" href="#(t-home|m-jobs|invite)">.*?</a>\n?','',start)
+    TITLE='Hamdan Properties — Dashboard'; OUT='Hamdan_Properties_Dashboard.html'
+elif MODE=='app':
+    import re
+    start=start.replace('Executive dashboard, staff portal, tenant app and technician app. Pick a view to open it on your phone, tablet or computer.','Mobile app for tenants and maintenance technicians. Best opened on a phone.')
+    start=re.sub(r'<a class="dcard" href="#(exec-ytd|dashboard|tenants-new)">.*?</a>\n?','',start)
+    start=start.replace('<div class="dsub">Property Management System</div>','<div class="dsub">Tenant &amp; Technician App</div>')
+    TITLE='Hamdan Properties — App'; OUT='Hamdan_Properties_App.html'
+else:
+    TITLE='Hamdan Properties — Dashboard and App'; OUT='index.html'
 html='''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#1d1d1b"><title>Hamdan Properties — Dashboard and App</title>
+<meta name="theme-color" content="#1d1d1b"><title>__TITLE__</title>
 <style>'''+css+'''
 .dstart{min-height:100vh;background:linear-gradient(160deg,#1d1d1b,#34342f);position:relative;color:#fff;padding:32px 18px 60px;display:flex;flex-direction:column;align-items:center;gap:24px}
 .dstart:before{content:'';position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,#feed01 0 50%,#e40613 50% 100%)}.dhero{max-width:760px;text-align:center;display:flex;flex-direction:column;align-items:center}.dlogoimg{width:230px;max-width:70vw;height:auto;margin:10px 0 6px}.dsub{color:#feed01;font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px;margin-bottom:10px}.dhero h1{font-size:34px;margin:6px 0}.dhero p{color:#dbe5f1;font-size:16px;line-height:1.5;margin:0}
@@ -61,7 +79,8 @@ var START=__START__;
 var root=document.getElementById('root'),toastEl=document.getElementById('dtoast'),pill=document.getElementById('dpill'),scrim=document.getElementById('dscrim');
 var tt;function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(tt);tt=setTimeout(function(){toastEl.classList.remove('show')},2600)}
 var OFF='Saving is switched off in this file. It works in the live system.';
-function keyFor(href){if(!href||href.charAt(0)!=='/')return null;
+function keyFor(href){var r=keyFor0(href);return r&&D.views[r]?r:null}
+function keyFor0(href){if(!href||href.charAt(0)!=='/')return null;
  if(D.paths[href])return D.paths[href];
  if(/^\\/tenants\\/[^/]+$/.test(href))return 'tenant-detail';
  if(/^\\/t\\/complaints\\/[^/]+$/.test(href))return 't-complaint';
@@ -113,6 +132,6 @@ pill.addEventListener('click',function(){go('start')});
 window.addEventListener('hashchange',render);render();
 })();
 </script></body></html>'''
-html=html.replace('__START__',json.dumps(start).replace('</','<\\/'))
-open('index.html','w').write(html)
-print(len(html)//1024,'KB')
+html=(html.replace('.dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))','.dgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))') if MODE!='all' else html).replace('__TITLE__',TITLE).replace('__START__',json.dumps(start).replace('</','<\\/'))
+open(OUT,'w').write(html)
+print(OUT,len(html)//1024,'KB')
