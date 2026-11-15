@@ -2,6 +2,7 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import InstallApp from '@/components/InstallApp';
 
 export default function Login() {
   const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false);
@@ -17,5 +18,6 @@ export default function Login() {
     <label>Email</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus style={{ marginBottom: 12 }} />
     <label>Password</label><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ marginBottom: 18 }} />
     <button className="primary" style={{ width: '100%' }} disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+    <InstallApp />
   </form></div>;
 }

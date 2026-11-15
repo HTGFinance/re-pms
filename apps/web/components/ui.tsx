@@ -9,7 +9,7 @@ export const Pill = ({ s }: { s: string }) => <span className={`pill ${PILL[s] |
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => { const k = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k); }, [onClose]);
-  return <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}><div className="box"><h2>{title}</h2>{children}</div></div>;
+  return <div className="modal" onMouseDown={(e) => e.target === e.currentTarget && onClose()}><div className="box" role="dialog" aria-modal="true" aria-label={title}><div className="mhead"><h2>{title}</h2><button type="button" className="mx" aria-label="Close" onClick={onClose}>×</button></div>{children}</div></div>;
 }
 export const Field = ({ label, children, full }: { label: string; children: ReactNode; full?: boolean }) =>
   <div className={full ? 'full' : ''}><label>{label}</label>{children}</div>;

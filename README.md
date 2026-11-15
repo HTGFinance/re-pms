@@ -111,6 +111,20 @@ complaints workflow, photo uploads, transfers with receipts, contract acceptance
 recoverable charges, dashboard figures, history, Excel report) and phase 5 (executive figures, budget vs actual and
 pro-rating, year to date, building split, board pack). Seed with `SEED_DEMO=true` before running them.
 
+### Phones, tablets and installing the app
+
+Every screen works on phones (from 360 px), tablets (portrait and landscape) and desktops:
+- Below 1024 px the staff portal shows a top bar with a menu button; the menu slides in from the left.
+- On phones, wide tables keep one line per row and scroll sideways inside their card, with the first column fixed;
+  KPI cards sit two to a row; pop-up windows open full screen with a close button.
+- Form fields use 16 px text on touch screens (no zoom on iPhone) and buttons are at least 40 px tall.
+- The tenant and technician apps widen to 760 px on tablets.
+- RE-PMS is an installable web app (`/manifest.webmanifest`, icons in `apps/web/public/icons`). On Android/Chrome the
+  login page shows "Install the RE-PMS app"; on iPhone/iPad it explains Share → Add to Home Screen. It then opens full
+  screen with its own icon. Installing needs the site on HTTPS (the cloud server set-up above).
+
+A one-page offline demo built from the real screens can be produced with `tools/mobile-demo` (see its README).
+
 ### Demo data for sales demos
 
 On an empty demo database (migrated, seeded with `SEED_DEMO=true`, API running): `cd apps/api && node scripts/demo-data.mjs`.
