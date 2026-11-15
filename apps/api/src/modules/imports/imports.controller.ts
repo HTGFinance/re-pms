@@ -1,3 +1,4 @@
+import { config } from '../../config';
 import { BadRequestException, Controller, Get, Param, Post, Query, Res, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
@@ -93,7 +94,7 @@ export class ImportsController {
     t.cols.forEach((c, i) => { ws.getColumn(i + 1).width = Math.max(14, c.length + 3); });
     ws.views = [{ state: 'frozen', ySplit: 1 }];
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="RE-PMS_${t.sheet.replace(/ /g, '_')}_template.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${config.brandName.replace(/[^A-Za-z0-9]+/g, '_')}_${t.sheet.replace(/ /g, '_')}_template.xlsx"`);
     await wb.xlsx.write(res); res.end();
   }
 

@@ -29,7 +29,12 @@ services:
       db: { condition: service_healthy }
 
   web:
-    build: ./apps/web
+    build:
+      context: ./apps/web
+      args:
+        NEXT_PUBLIC_BRAND_NAME: ${BRAND_NAME:-Hamdan Real Estate}
+        NEXT_PUBLIC_BRAND_SHORT: ${BRAND_SHORT:-Hamdan RE}
+        NEXT_PUBLIC_BRAND_TAGLINE: ${BRAND_TAGLINE:-Property Management System}
     restart: unless-stopped
     environment:
       API_URL: http://api:4000

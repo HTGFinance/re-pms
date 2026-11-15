@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { BRAND } from '@/lib/brand';
 
 /** "Install the app" for phones and tablets: one tap on Android/Chrome; short steps on iPhone/iPad. */
 export default function InstallApp() {
@@ -14,8 +15,8 @@ export default function InstallApp() {
   }, []);
   if (installed || (!evt && !ios)) return null;
   return <div className="install">
-    {evt ? <button type="button" className="btn-block" onClick={async () => { evt.prompt(); await evt.userChoice.catch(() => null); setEvt(null); }}>⬇ Install the RE-PMS app</button>
-      : <button type="button" className="btn-block" onClick={() => setHelp(!help)}>⬇ Add RE-PMS to your Home Screen</button>}
-    {help && <div className="info" style={{ marginTop: 8 }}>In Safari, tap the <b>Share</b> button, then <b>Add to Home Screen</b>. RE-PMS then opens full screen like an app.</div>}
+    {evt ? <button type="button" className="btn-block" onClick={async () => { evt.prompt(); await evt.userChoice.catch(() => null); setEvt(null); }}>⬇ Install the {BRAND.short} app</button>
+      : <button type="button" className="btn-block" onClick={() => setHelp(!help)}>⬇ Add {BRAND.short} to your Home Screen</button>}
+    {help && <div className="info" style={{ marginTop: 8 }}>In Safari, tap the <b>Share</b> button, then <b>Add to Home Screen</b>. The app then opens full screen like an app.</div>}
   </div>;
 }

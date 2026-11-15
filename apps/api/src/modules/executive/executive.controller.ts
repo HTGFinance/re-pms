@@ -1,3 +1,4 @@
+import { config } from '../../config';
 import { BadRequestException, Controller, Get, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
 import ExcelJS from 'exceljs';
@@ -159,7 +160,7 @@ export class ExecutiveController {
   @Get('report.xlsx') @Roles(...ROLES)
   async report(@CurrentUser() u: AuthUser, @Res() res: Response, @Query('from') qf?: string, @Query('to') qt?: string, @Query('buildingId') buildingId?: string) {
     const d = await this.dashboard(u, qf, qt, buildingId); const r = d.period; const t = d.totals; const OMR = '#,##0.000';
-    const wb = new ExcelJS.Workbook(); wb.creator = 'RE-PMS';
+    const wb = new ExcelJS.Workbook(); wb.creator = config.brandName;
     const head = (ws: ExcelJS.Worksheet, cols: [string, number][]) => { ws.columns = cols.map(([h, w]) => ({ header: h, width: w })); const row = ws.getRow(1); row.font = { bold: true, color: { argb: 'FFFFFFFF' } }; row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3A5F' } }; ws.views = [{ state: 'frozen', ySplit: 1 }]; };
     const s1 = wb.addWorksheet('Summary'); s1.columns = [{ width: 42 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 12 }];
     s1.addRow([`Property portfolio — ${r.from} to ${r.to}`]).font = { bold: true, size: 14 }; s1.addRow([`Prepared ${todayOman()} · occupancy as at ${r.asAt}`]); s1.addRow([]);
@@ -180,7 +181,7 @@ export class ExecutiveController {
     const s3 = wb.addWorksheet('Monthly'); head(s3, [['Month', 10], ['Rent', 14], ['Rent budget', 14], ['Billed incl. VAT', 15], ['Collected', 14], ['Cash', 14], ['Collection budget', 16], ['Maintenance', 14], ['Maint. budget', 14], ['Occupancy %', 12]]);
     d.monthly.forEach((m: any) => { const row = s3.addRow([m.month, Number(m.rent), Number(m.budgetRent), Number(m.billed), Number(m.collected), Number(m.cash), Number(m.budgetCollection), Number(m.maintenance), Number(m.budgetMaintenance), m.occupancy]); [2, 3, 4, 5, 6, 7, 8, 9].forEach((i) => (row.getCell(i).numFmt = OMR)); });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="RE-PMS_Executive_${r.from}_to_${r.to}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${config.brandName.replace(/[^A-Za-z0-9]+/g, '_')}_Executive_${r.from}_to_${r.to}.xlsx"`);
     await wb.xlsx.write(res); res.end();
   }
 }

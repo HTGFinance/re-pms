@@ -10,18 +10,18 @@ for k,v in views.items():
     else: paths.setdefault(p,k)
 data=json.dumps({'views':{k:v['html'] for k,v in views.items()},'role':{k:v.get('role') for k,v in views.items()},'paths':paths}).replace('</','<\\/')
 start='''<div class="dstart">
-<div class="dhero"><div class="dlogo">RE-PMS</div><h1>Live demo</h1><p>Property management for Oman and the Gulf. Pick a view to explore it on your phone, tablet or computer.</p></div>
+<div class="dhero"><div class="dlogo">HAMDAN REAL ESTATE</div><h1>Property Management System</h1><p>Executive dashboard, staff portal, tenant app and technician app. Pick a view to open it on your phone, tablet or computer.</p></div>
 <div class="dgrid">
 <a class="dcard" href="#exec-ytd"><span class="dic">📊</span><b>Executive dashboard</b><span>Owners and board: occupancy, collections, NOI vs budget, charts</span></a>
 <a class="dcard" href="#dashboard"><span class="dic">🏢</span><b>Property &amp; finance portal</b><span>Buildings, tenants, contracts, rent recovery, cheques, maintenance</span></a>
 <a class="dcard" href="#t-home"><span class="dic">📱</span><b>Tenant app</b><span>Rent due, pay, repairs with photos, contract, alerts</span></a>
 <a class="dcard" href="#m-jobs"><span class="dic">🛠</span><b>Technician app</b><span>Jobs for today, directions, updates, costs</span></a>
 </div>
-<p class="dnote">Sample data: 4 buildings, 94 units, 86 tenants. Saving, payments and uploads are switched off in this demo.</p>
+<p class="dnote">Shown with sample data (4 buildings, 94 units, 86 tenants) until the group’s buildings are loaded. Saving, payments and uploads are switched off in this file; they work in the live system.</p>
 </div>'''
 html='''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#1f3a5f"><title>RE-PMS — Live demo (dashboard and mobile app)</title>
+<meta name="theme-color" content="#1f3a5f"><title>Hamdan Real Estate — Dashboard and App</title>
 <style>'''+css+'''
 .dstart{min-height:100vh;background:linear-gradient(160deg,#1f3a5f,#2b5a8a);color:#fff;padding:32px 18px 60px;display:flex;flex-direction:column;align-items:center;gap:24px}
 .dhero{max-width:760px;text-align:center}.dlogo{font-weight:800;letter-spacing:.06em;color:#9fd8cf}.dhero h1{font-size:34px;margin:6px 0}.dhero p{color:#dbe5f1;font-size:16px;line-height:1.5;margin:0}
@@ -39,7 +39,7 @@ html='''<!DOCTYPE html>
 @media(max-width:1023px){.dscrim.on{display:block}}
 </style></head><body>
 <div id="root"></div><div class="dscrim" id="dscrim"></div><div id="dtoast" role="status" aria-live="polite"></div>
-<button class="dpill" id="dpill" type="button" hidden>⌂ Demo menu</button>
+<button class="dpill" id="dpill" type="button" hidden>⌂ Menu</button>
 <script id="data" type="application/json">'''+data+'''</script>
 <script>
 (function(){
@@ -47,7 +47,7 @@ var D=JSON.parse(document.getElementById('data').textContent);
 var START=__START__;
 var root=document.getElementById('root'),toastEl=document.getElementById('dtoast'),pill=document.getElementById('dpill'),scrim=document.getElementById('dscrim');
 var tt;function toast(m){toastEl.textContent=m;toastEl.classList.add('show');clearTimeout(tt);tt=setTimeout(function(){toastEl.classList.remove('show')},2600)}
-var OFF='Demo: saving is switched off here. In the full system this works.';
+var OFF='Saving is switched off in this file. It works in the live system.';
 function keyFor(href){if(!href||href.charAt(0)!=='/')return null;
  if(D.paths[href])return D.paths[href];
  if(/^\\/tenants\\/[^/]+$/.test(href))return 'tenant-detail';
@@ -64,14 +64,14 @@ function render(){
  var role=D.role[k];pill.hidden=k==='start';pill.classList.toggle('up',role==='tenant'||role==='tech');
  root.querySelectorAll('a[href]').forEach(function(a){var h=a.getAttribute('href');if(h.charAt(0)==='#')return;var t=keyFor(h);if(t){a.setAttribute('href','#'+t)}else{a.setAttribute('data-off',h.indexOf('/api/')===0?'dl':'1');a.setAttribute('href','#'+k)}});
  root.querySelectorAll('form').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();toast(OFF)})});
- root.querySelectorAll('select').forEach(function(s){s.addEventListener('change',function(){toast('Demo: filters show the sample view. They work live in the full system.')})});
+ root.querySelectorAll('select').forEach(function(s){s.addEventListener('change',function(){toast('filters show the sample view. They work live in the full system.')})});
  var p=period(k);
  root.querySelectorAll('button').forEach(function(b){var t=b.textContent.trim();var to=null;
   if(p){var map={'Year to date':'ytd','Month':'month','Quarter':'quarter','Year':'year'};
    if(b.closest('.seg')&&map[t])to=p[1]+'-'+map[t];
-   if(b.closest('.seg')&&t==='From – To')b.dataset.msg='Demo: pick any dates in the full system.';
+   if(b.closest('.seg')&&t==='From – To')b.dataset.msg='pick any dates in the full system.';
    if(t==='Summary')to='exec-'+p[2];if(t==='Charts')to='charts-'+p[2];}
-  if(k.indexOf('recovery')===0){if(t==='Rent schedule')to='recovery';if(t==='Arrears & follow-up')to='recovery-arrears';if(/^Verification queue/.test(t))to='recovery-verify';if(t==='All payments')b.dataset.msg='Demo: payment history is in the full system.';}
+  if(k.indexOf('recovery')===0){if(t==='Rent schedule')to='recovery';if(t==='Arrears & follow-up')to='recovery-arrears';if(/^Verification queue/.test(t))to='recovery-verify';if(t==='All payments')b.dataset.msg='payment history is in the full system.';}
   if(k.indexOf('maintenance')===0){if(t==='This month')to='maintenance';if(t==='Year to date')to='maintenance-ytd';}
   if(k==='complaint-detail'&&(t==='×'||t==='Close'||t==='Cancel'))to='complaints';
   if(b.classList.contains('mbtn')||b.classList.contains('mclose'))return;
@@ -84,7 +84,7 @@ root.addEventListener('click',function(e){
  var t=e.target;
  var mb=t.closest('.mbtn');if(mb){var a=root.querySelector('aside');if(a){a.classList.add('open');scrim.classList.add('on')}return}
  if(t.closest('.mclose')){closeMenu();return}
- var a=t.closest('a[data-off]');if(a){e.preventDefault();toast(a.getAttribute('data-off')==='dl'?'Demo: Excel downloads work in the full system.':'Demo: this screen opens in the full system.');return}
+ var a=t.closest('a[data-off]');if(a){e.preventDefault();toast(a.getAttribute('data-off')==='dl'?'Excel downloads work in the full system.':'this screen opens in the full system.');return}
  var v=t.closest('[data-v]');if(v){e.preventDefault();if(v.dataset.v==='tenant-detail'&&v.tagName==='TR')toast('Demo shows one sample tenant.');go(v.dataset.v);return}
  var b=t.closest('button');if(b){if(b.dataset.msg){toast(b.dataset.msg);return}var ty=(b.getAttribute('type')||'submit');if(!b.closest('form')||ty!=='submit'){toast(OFF)}return}
  if(t.closest('aside nav a'))closeMenu();

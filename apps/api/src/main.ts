@@ -15,6 +15,6 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
   app.enableShutdownHooks();
   await app.listen(config.port);
-  console.log(`RE-PMS API listening on :${config.port}/api`);
+  console.log(`${config.brandName} API listening on :${config.port}/api`);
 }
 bootstrap();

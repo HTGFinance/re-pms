@@ -5,7 +5,11 @@ RUN npm ci
 COPY . .
 # The API address is fixed into the build (Next.js rewrites). Default = the 'api' service in docker-compose.
 ARG API_URL=http://api:4000
-ENV API_URL=$API_URL NEXT_TELEMETRY_DISABLED=1
+# Company name shown in the app (white-label). Fixed into the build.
+ARG NEXT_PUBLIC_BRAND_NAME="Hamdan Real Estate"
+ARG NEXT_PUBLIC_BRAND_SHORT="Hamdan RE"
+ARG NEXT_PUBLIC_BRAND_TAGLINE="Property Management System"
+ENV API_URL=$API_URL NEXT_TELEMETRY_DISABLED=1 NEXT_PUBLIC_BRAND_NAME=$NEXT_PUBLIC_BRAND_NAME NEXT_PUBLIC_BRAND_SHORT=$NEXT_PUBLIC_BRAND_SHORT NEXT_PUBLIC_BRAND_TAGLINE=$NEXT_PUBLIC_BRAND_TAGLINE
 RUN npm run build
 
 FROM node:20-alpine

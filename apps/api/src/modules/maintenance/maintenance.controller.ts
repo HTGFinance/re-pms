@@ -1,3 +1,4 @@
+import { config } from '../../config';
 import { BadRequestException, Body, ConflictException, Controller, Delete, ForbiddenException, Get, HttpCode, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Res } from '@nestjs/common';
 import { IsEnum, IsOptional, IsString, IsUUID, Matches, MaxLength, ValidateIf } from 'class-validator';
 import { Response } from 'express';
@@ -282,7 +283,7 @@ export class MaintenanceController {
       WHERE (c.created_at::date BETWEEN $1 AND $2 OR c.completed_at::date BETWEEN $1 AND $2) AND ${sc} ORDER BY c.created_at`, p);
     const pk: unknown[] = [from, to]; const sk = this.scope(u, buildingId, 'k.building_id', pk);
     const costs = await this.ds.query(this.costSql(`k.work_date BETWEEN $1 AND $2 AND ${sk}`) + ' ORDER BY k.work_date', pk);
-    const wb = new ExcelJS.Workbook(); wb.creator = 'RE-PMS';
+    const wb = new ExcelJS.Workbook(); wb.creator = config.brandName;
     const head = (ws: ExcelJS.Worksheet, cols: [string, number][]) => { ws.columns = cols.map(([h, w]) => ({ header: h, width: w })); const r = ws.getRow(1); r.font = { bold: true, color: { argb: 'FFFFFFFF' } }; r.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1F3A5F' } }; ws.views = [{ state: 'frozen', ySplit: 1 }]; };
     const OMR = '#,##0.000';
     const s1 = wb.addWorksheet('Summary'); s1.columns = [{ width: 38 }, { width: 18 }];
@@ -305,7 +306,7 @@ export class MaintenanceController {
     const s6 = wb.addWorksheet('Costs'); head(s6, [['Job', 12], ['Work date', 12], ['Building / unit', 26], ['Technician', 20], ['Material', 12], ['Labour', 12], ['Contractor', 12], ['Contractor name', 20], ['Other', 10], ['Total', 12], ['Who bears it', 24], ['Approval', 12], ['Description', 40]]);
     costs.forEach((k: any) => { const r = s6.addRow([k.ref_no, k.work_date, k.unit_label, k.technician_name || '', Number(k.material), Number(k.labour), Number(k.contractor), k.contractor_name, Number(k.other), Number(k.total), k.classification, k.approval_status, k.description]); [5, 6, 7, 9, 10].forEach((i) => (r.getCell(i).numFmt = OMR)); });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="RE-PMS_Maintenance_${from}_to_${to}.xlsx"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${config.brandName.replace(/[^A-Za-z0-9]+/g, '_')}_Maintenance_${from}_to_${to}.xlsx"`);
     await wb.xlsx.write(res); res.end();
   }
 }

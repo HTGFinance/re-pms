@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
 import { api, Me, Role, ROLE_LABEL } from '@/lib/api';
+import { BRAND } from '@/lib/brand';
 
 const MeCtx = createContext<Me | null>(null);
 export const useMe = () => useContext(MeCtx);
@@ -31,16 +32,16 @@ export default function Shell({ children }: { children: ReactNode }) {
   if (!me) return <div className="empty">Loading…</div>;
   const items = NAV.filter((n) => !n.roles || me.role === 'ADMIN' || n.roles.includes(me.role));
   const isOn = (h: string) => (h === '/' ? path === '/' : path.startsWith(h));
-  const current = items.find((n) => isOn(n.href))?.label ?? 'RE-PMS';
+  const current = items.find((n) => isOn(n.href))?.label ?? BRAND.name;
   const logout = async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); router.replace('/login'); };
   return <MeCtx.Provider value={me}><div className="app">
     <div className="mbar">
       <button className="mbtn" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)}><span /><span /><span /></button>
-      <div className="mtitle"><b>{current}</b><small>RE-PMS</small></div>
+      <div className="mtitle"><b>{current}</b><small>{BRAND.name}</small></div>
     </div>
     {open && <div className="scrim" onClick={() => setOpen(false)} />}
     <aside className={open ? 'open' : ''}>
-      <div className="brand"><div>RE-PMS<small>Property Management System</small></div>
+      <div className="brand"><div>{BRAND.name}<small>{BRAND.tagline}</small></div>
         <button className="mclose" aria-label="Close menu" onClick={() => setOpen(false)}>×</button></div>
       <nav>{items.map((n) => <Link key={n.href} href={n.href} className={isOn(n.href) ? 'on' : ''}>{n.label}</Link>)}</nav>
       <div className="foot"><b style={{ color: '#fff' }}>{me.name}</b><br />{ROLE_LABEL[me.role]}<br /><a style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={logout}>Sign out</a></div>

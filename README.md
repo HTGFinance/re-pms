@@ -111,6 +111,12 @@ complaints workflow, photo uploads, transfers with receipts, contract acceptance
 recoverable charges, dashboard figures, history, Excel report) and phase 5 (executive figures, budget vs actual and
 pro-rating, year to date, building split, board pack). Seed with `SEED_DEMO=true` before running them.
 
+### Company name (branding)
+
+The group runs the system as **Hamdan Real Estate**. The name appears on the login page, menu, receipts, the installed
+app and Excel file names. It is set in `.env` (`BRAND_NAME`, `BRAND_SHORT`, `BRAND_TAGLINE`) and fixed into the web
+build, so for a future sale or another customer change those three lines and rebuild (`docker compose up -d --build`).
+
 ### Phones, tablets and installing the app
 
 Every screen works on phones (from 360 px), tablets (portrait and landscape) and desktops:

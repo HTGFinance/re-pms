@@ -1,10 +1,11 @@
 import type { MetadataRoute } from 'next';
+import { BRAND } from '@/lib/brand';
 
-/** Lets staff, tenants and technicians add RE-PMS to their phone or tablet home screen. */
+/** Lets staff, tenants and technicians add the app to their phone or tablet home screen. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'RE-PMS — Property Management',
-    short_name: 'RE-PMS',
+    name: `${BRAND.name} — ${BRAND.tagline}`,
+    short_name: BRAND.short,
     description: 'Rent, tenants, maintenance and executive dashboard',
     start_url: '/',
     scope: '/',

@@ -2,6 +2,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Err, Field, Modal, useLoad } from '@/components/ui';
 import { api, fmtDate, num3, omr } from '@/lib/api';
+import { BRAND } from '@/lib/brand';
 
 export const today = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Muscat' }).format(new Date());
 export const BANKS = ['Bank Muscat', 'National Bank of Oman', 'Bank Dhofar', 'Sohar International', 'Oman Arab Bank', 'HSBC Oman', 'Bank Nizwa', 'Ahli Bank', 'Other'];
@@ -74,6 +75,7 @@ export function Receipt({ id, onClose }: { id: string; onClose: () => void }) {
   const R = useLoad(() => api(`/payments/${id}/receipt`), [id]); const r = R.data;
   return <Modal title="Payment receipt" onClose={onClose}><Err msg={R.error} />{r && <div id="receipt" style={{ border: '1px solid var(--line)', borderRadius: 10, padding: 18 }}>
     <div className="row" style={{ justifyContent: 'space-between' }}><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)' }}>Receipt</div><div style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)', direction: 'rtl' }}>إيصال استلام</div></div>
+    <div className="small" style={{ fontWeight: 700, marginTop: 4 }}>{BRAND.name}</div>
     <div className="small muted" style={{ marginBottom: 12 }}>{r.receiptNo} · {fmtDate(r.date)}</div>
     {[['Received from', r.tenant?.name + (r.tenant?.tenant_no ? ` (${r.tenant.tenant_no})` : '')], ['Property', r.tenant?.building ? `${r.tenant.building}, unit ${r.tenant.unit_no}` : '—'], ['Amount', omr(r.amount)], ['Method', r.method], ['Reference', r.reference || '—'], ['Verified', r.verifiedAt ? new Date(r.verifiedAt).toLocaleString('en-GB', { timeZone: 'Asia/Muscat' }) : '—']]
       .map(([k, v]) => <div className="line" key={k}><span className="muted">{k}</span><b>{v}</b></div>)}
