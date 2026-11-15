@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { api, Me } from '@/lib/api';
+import { BRAND } from '@/lib/brand';
 
 /** Technician app: phone-first frame. */
 export default function MLayout({ children }: { children: React.ReactNode }) {
@@ -11,7 +12,7 @@ export default function MLayout({ children }: { children: React.ReactNode }) {
   if (!me) return <div className="empty">Loading…</div>;
   const logout = async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); router.replace('/login'); };
   return <div className="tapp">
-    <div className="ttop"><div><div className="small" style={{ opacity: .8 }}>Maintenance</div><div className="tname">{me.name}</div></div>
+    <div className="ttop"><div className="tid"><img src={BRAND.mark} alt={BRAND.name} /><div><div className="small" style={{ opacity: .8 }}>{BRAND.name} · Maintenance</div><div className="tname">{me.name}</div></div></div>
       <button className="sm" style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)' }} onClick={logout}>Sign out</button></div>
     <div className="tbody">{children}</div>
     <nav className="tnav">

@@ -13,7 +13,7 @@ function periods() {
   const lm = new Date(Date.UTC(Number(y), m - 2, 1)); const lmEnd = new Date(Date.UTC(Number(y), m - 1, 0));
   return { month: [t.slice(0, 8) + '01', t], last: [lm.toISOString().slice(0, 10), lmEnd.toISOString().slice(0, 10)], quarter: [`${y}-${String(q * 3 + 1).padStart(2, '0')}-01`, t], ytd: [`${y}-01-01`, t] } as Record<string, [string, string]>;
 }
-const CLS_COLOR: Record<string, string> = { 'Company responsibility': '#1f3a5f', 'Recoverable from tenant': '#2a9d8f', 'Tenant responsibility': '#e9b949' };
+const CLS_COLOR: Record<string, string> = { 'Company responsibility': '#1d1d1b', 'Recoverable from tenant': '#d9a000', 'Tenant responsibility': '#e40613' };
 
 export default function Maintenance() {
   const me = useMe(); const P = periods();
@@ -64,7 +64,7 @@ function Dash({ d }: { d: any }) {
     </div>
     <div className="grid c2" style={{ marginTop: 14 }}>
       <div className="card"><h3>Monthly maintenance spend (OMR, last 12 months)</h3><BarChart labels={d.trend.map((t: any) => mLabel(t.month))} series={[{ name: 'Spend', values: d.trend.map((t: any) => Number(t.cost)) }]} /></div>
-      <div className="card"><h3>Complaints received vs completed</h3><BarChart labels={d.trend.map((t: any) => mLabel(t.month))} series={[{ name: 'Received', values: d.trend.map((t: any) => t.received), color: '#4f86c6' }, { name: 'Completed', values: d.trend.map((t: any) => t.completed), color: '#2a9d8f' }]} /></div>
+      <div className="card"><h3>Complaints received vs completed</h3><BarChart labels={d.trend.map((t: any) => mLabel(t.month))} series={[{ name: 'Received', values: d.trend.map((t: any) => t.received), color: '#77766f' }, { name: 'Completed', values: d.trend.map((t: any) => t.completed), color: '#d9a000' }]} /></div>
       <div className="card"><h3>Who pays</h3><HBars unit="OMR " items={s.byClass.map((c: any) => ({ label: c.classification, value: Number(c.amount), color: CLS_COLOR[c.classification] }))} />
         <h3 style={{ marginTop: 16 }}>Cost type</h3><HBars unit="OMR " items={[['Material', s.split.material], ['Labour', s.split.labour], ['External contractors', s.split.contractor], ['Other', s.split.other]].map(([l, v]) => ({ label: l, value: Number(v) }))} /></div>
       <div className="card"><h3>Complaints by category</h3>{d.categories.length ? <HBars items={d.categories.map((c: any) => ({ label: `${c.category} · OMR ${num3(c.cost)}`, value: c.count }))} /> : <div className="empty">No complaints in this period.</div>}</div>

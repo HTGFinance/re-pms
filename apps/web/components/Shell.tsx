@@ -37,11 +37,11 @@ export default function Shell({ children }: { children: ReactNode }) {
   return <MeCtx.Provider value={me}><div className="app">
     <div className="mbar">
       <button className="mbtn" aria-label="Open menu" aria-expanded={open} onClick={() => setOpen(true)}><span /><span /><span /></button>
-      <div className="mtitle"><b>{current}</b><small>{BRAND.name}</small></div>
+      <img className="mlogo" src={BRAND.mark} alt={BRAND.name} /><div className="mtitle"><b>{current}</b><small>{BRAND.name}</small></div>
     </div>
     {open && <div className="scrim" onClick={() => setOpen(false)} />}
     <aside className={open ? 'open' : ''}>
-      <div className="brand"><div>{BRAND.name}<small>{BRAND.tagline}</small></div>
+      <div className="brand"><div className="blogo"><img src={BRAND.mark} alt="" /><div><span className="bn">{BRAND.name}</span><span className="bt">{BRAND.tagline}</span></div></div>
         <button className="mclose" aria-label="Close menu" onClick={() => setOpen(false)}>×</button></div>
       <nav>{items.map((n) => <Link key={n.href} href={n.href} className={isOn(n.href) ? 'on' : ''}>{n.label}</Link>)}</nav>
       <div className="foot"><b style={{ color: '#fff' }}>{me.name}</b><br />{ROLE_LABEL[me.role]}<br /><a style={{ cursor: 'pointer', textDecoration: 'underline' }} onClick={logout}>Sign out</a></div>

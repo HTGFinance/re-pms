@@ -13,6 +13,7 @@ export default function Login() {
     try { const r = await api('/auth/login', { body: { email, password } }); router.replace(r.user.mustChangePassword ? '/password' : r.user.role === 'TENANT' ? '/t' : r.user.role === 'TECHNICIAN' ? '/m' : '/'); } catch (x: any) { setErr(x.message); setBusy(false); }
   };
   return <div className="login"><form className="box" onSubmit={submit}>
+    <img className="llogo" src={BRAND.logo} alt={`${BRAND.name} logo`} />
     <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--navy)' }}>{BRAND.name}</div>
     <div className="muted small" style={{ marginBottom: 18 }}>{BRAND.tagline}</div>
     {err && <div className="err">{err}</div>}

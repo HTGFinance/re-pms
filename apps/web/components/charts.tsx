@@ -1,6 +1,7 @@
 'use client';
 /** Lightweight SVG charts (no external library). */
-const COLORS = ['#1f3a5f', '#2a9d8f', '#e9b949', '#e76f51', '#4f86c6', '#94a3b8'];
+const COLORS = ['#1d1d1b', '#d9a000', '#e40613', '#77766f', '#5b6b7f', '#b9b8b1'];
+const LINE = '#e40613'; // budget line: brand red
 const fmt = (v: number) => v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + 'k' : v % 1 ? v.toFixed(1) : String(v);
 
 export function BarChart({ labels, series, line, height = 220 }: { labels: string[]; series: { name: string; values: number[]; color?: string }[]; line?: { name: string; values: number[] }; height?: number }) {
@@ -16,11 +17,11 @@ export function BarChart({ labels, series, line, height = 220 }: { labels: strin
         {series.map((s, j) => { const v = s.values[i] || 0; const x = pad.l + i * cw + (cw - bw * series.length) / 2 + j * bw;
           return <rect key={j} x={x} y={y(v)} width={bw - 1} height={Math.max(0, H - pad.b - y(v))} fill={s.color || COLORS[j]} rx="2"><title>{`${s.name} ${l}: ${v.toLocaleString('en-US')}`}</title></rect>; })}
         <text x={pad.l + i * cw + cw / 2} y={H - pad.b + 14} fontSize="10" textAnchor="middle" fill="#64748b">{l}</text></g>)}
-      {line && <polyline fill="none" stroke="#e9b949" strokeWidth="2.5" points={line.values.map((v, i) => `${pad.l + i * cw + cw / 2},${y(v)}`).join(' ')} />}
-      {line && line.values.map((v, i) => <circle key={i} cx={pad.l + i * cw + cw / 2} cy={y(v)} r="3" fill="#e9b949"><title>{`${line.name} ${labels[i]}: ${v.toLocaleString('en-US')}`}</title></circle>)}
+      {line && <polyline fill="none" stroke={LINE} strokeWidth="2.5" strokeDasharray="6 4" points={line.values.map((v, i) => `${pad.l + i * cw + cw / 2},${y(v)}`).join(' ')} />}
+      {line && line.values.map((v, i) => <circle key={i} cx={pad.l + i * cw + cw / 2} cy={y(v)} r="3.5" fill={LINE}><title>{`${line.name} ${labels[i]}: ${v.toLocaleString('en-US')}`}</title></circle>)}
     </svg>
     <div className="row small" style={{ gap: 14, justifyContent: 'center' }}>{series.map((s, j) => <span key={s.name}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: s.color || COLORS[j], marginRight: 5 }} />{s.name}</span>)}
-      {line && <span><span style={{ display: 'inline-block', width: 14, height: 3, background: '#e9b949', marginRight: 5, verticalAlign: 'middle' }} />{line.name}</span>}</div>
+      {line && <span><span style={{ display: 'inline-block', width: 14, height: 3, background: LINE, marginRight: 5, verticalAlign: 'middle' }} />{line.name}</span>}</div>
   </div>;
 }
 

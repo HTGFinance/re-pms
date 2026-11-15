@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { api, Me } from '@/lib/api';
+import { BRAND } from '@/lib/brand';
 
 type Home = any;
 const Ctx = createContext<{ me: Me; home: Home | null; reload: () => void } | null>(null);
@@ -22,8 +23,8 @@ export default function TenantShell({ children }: { children: ReactNode }) {
   const logout = async () => { await api('/auth/logout', { method: 'POST' }).catch(() => undefined); router.replace('/login'); };
   return <Ctx.Provider value={{ me, home, reload }}>
     <div className="tapp">
-      <div className="ttop"><div><div className="small" style={{ opacity: .8 }}>Welcome</div><div className="tname">{home?.tenant?.name || me.name}</div>
-        {home?.contracts?.[0] && <div className="small" style={{ opacity: .85 }}>{home.contracts[0].building.name} · Unit {home.contracts[0].unit.no}</div>}</div>
+      <div className="ttop"><div className="tid"><img src={BRAND.mark} alt={BRAND.name} /><div><div className="small" style={{ opacity: .8 }}>Welcome</div><div className="tname">{home?.tenant?.name || me.name}</div>
+        {home?.contracts?.[0] && <div className="small" style={{ opacity: .85 }}>{home.contracts[0].building.name} · Unit {home.contracts[0].unit.no}</div>}</div></div>
         <button className="sm" style={{ background: 'transparent', color: '#fff', borderColor: 'rgba(255,255,255,.4)' }} onClick={logout}>Sign out</button></div>
       <div className="tbody">{children}</div>
       <nav className="tnav">{TABS.map((t) => { const on = t.href === '/t' ? path === '/t' : path.startsWith(t.href);

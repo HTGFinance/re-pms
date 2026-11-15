@@ -1,5 +1,15 @@
 import json
+import base64
 views=json.load(open('views.json')); css=open('app.css').read()
+B='../../apps/web/public/brand/'
+def uri(f): return 'data:image/png;base64,'+base64.b64encode(open(B+f,'rb').read()).decode()
+LOGO, MARK = uri('logo-full.png'), uri('logo-mark.png')
+from PIL import Image
+import io
+def small(f,w):
+    im=Image.open(B+f); im=im.resize((w,int(im.height*w/im.width)),Image.LANCZOS); b=io.BytesIO(); im.save(b,'PNG',optimize=True); return 'data:image/png;base64,'+base64.b64encode(b.getvalue()).decode()
+MARK=small('logo-mark.png',128); LOGO=small('logo-full.png',427)
+for k,v in views.items(): v['html']=v['html'].replace('/brand/logo-mark.png','__MARK__').replace('/brand/logo-full.png','__LOGO__')
 for k,v in views.items(): v['html']=v['html']
 paths={}
 for k,v in views.items():
@@ -8,9 +18,9 @@ for k,v in views.items():
     elif k=='charts-ytd': paths['/executive?view=charts']=k
     elif k.startswith(('exec-','charts-','recovery-','maintenance-','complaint-detail')): pass
     else: paths.setdefault(p,k)
-data=json.dumps({'views':{k:v['html'] for k,v in views.items()},'role':{k:v.get('role') for k,v in views.items()},'paths':paths}).replace('</','<\\/')
+data=json.dumps({'mark':MARK,'logo':LOGO,'views':{k:v['html'] for k,v in views.items()},'role':{k:v.get('role') for k,v in views.items()},'paths':paths}).replace('</','<\\/')
 start='''<div class="dstart">
-<div class="dhero"><div class="dlogo">HAMDAN REAL ESTATE</div><h1>Property Management System</h1><p>Executive dashboard, staff portal, tenant app and technician app. Pick a view to open it on your phone, tablet or computer.</p></div>
+<div class="dhero"><img class="dlogoimg" src="__LOGO__" alt="Hamdan Properties logo"><h1>Hamdan Properties</h1><div class="dsub">Property Management System</div><p>Executive dashboard, staff portal, tenant app and technician app. Pick a view to open it on your phone, tablet or computer.</p></div>
 <div class="dgrid">
 <a class="dcard" href="#exec-ytd"><span class="dic">📊</span><b>Executive dashboard</b><span>Owners and board: occupancy, collections, NOI vs budget, charts</span></a>
 <a class="dcard" href="#dashboard"><span class="dic">🏢</span><b>Property &amp; finance portal</b><span>Buildings, tenants, contracts, rent recovery, cheques, maintenance</span></a>
@@ -21,13 +31,13 @@ start='''<div class="dstart">
 </div>'''
 html='''<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#1f3a5f"><title>Hamdan Real Estate — Dashboard and App</title>
+<meta name="theme-color" content="#1d1d1b"><title>Hamdan Properties — Dashboard and App</title>
 <style>'''+css+'''
-.dstart{min-height:100vh;background:linear-gradient(160deg,#1f3a5f,#2b5a8a);color:#fff;padding:32px 18px 60px;display:flex;flex-direction:column;align-items:center;gap:24px}
-.dhero{max-width:760px;text-align:center}.dlogo{font-weight:800;letter-spacing:.06em;color:#9fd8cf}.dhero h1{font-size:34px;margin:6px 0}.dhero p{color:#dbe5f1;font-size:16px;line-height:1.5;margin:0}
+.dstart{min-height:100vh;background:linear-gradient(160deg,#1d1d1b,#34342f);position:relative;color:#fff;padding:32px 18px 60px;display:flex;flex-direction:column;align-items:center;gap:24px}
+.dstart:before{content:'';position:absolute;left:0;right:0;top:0;height:6px;background:linear-gradient(90deg,#feed01 0 50%,#e40613 50% 100%)}.dhero{max-width:760px;text-align:center;display:flex;flex-direction:column;align-items:center}.dlogoimg{width:230px;max-width:70vw;height:auto;margin:10px 0 6px}.dsub{color:#feed01;font-weight:600;letter-spacing:.08em;text-transform:uppercase;font-size:12px;margin-bottom:10px}.dhero h1{font-size:34px;margin:6px 0}.dhero p{color:#dbe5f1;font-size:16px;line-height:1.5;margin:0}
 .dgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;width:100%;max-width:760px}
 .dcard{background:#fff;color:#1e293b;border-radius:16px;padding:18px;text-decoration:none;display:flex;flex-direction:column;gap:6px;box-shadow:0 12px 30px rgba(0,0,0,.2);min-height:44px}
-.dcard b{font-size:16px;color:#1f3a5f}.dcard span{font-size:13px;color:#64748b;line-height:1.45}.dcard .dic{font-size:26px}
+.dcard b{font-size:16px;color:#1d1d1b}.dcard{border-top:4px solid #e40613}.dcard span{font-size:13px;color:#64748b;line-height:1.45}.dcard .dic{font-size:26px}
 .dcard:active{transform:scale(.98)}
 .dnote{color:#c5d3e0;font-size:13px;text-align:center;max-width:560px}
 @media(max-width:560px){.dgrid{grid-template-columns:1fr}.dhero h1{font-size:28px}}
@@ -60,7 +70,7 @@ function go(k){if(location.hash==='#'+k)render();else location.hash=k}
 function period(k){var m=k.match(/^(exec|charts)-(.*)$/);return m?m:null}
 function render(){
  var k=(location.hash||'').slice(1);if(!D.views[k])k='start';
- root.innerHTML=k==='start'?START:D.views[k];closeMenu();window.scrollTo(0,0);
+ root.innerHTML=(k==='start'?START:D.views[k]).split('__MARK__').join(D.mark).split('__LOGO__').join(D.logo);closeMenu();window.scrollTo(0,0);
  var role=D.role[k];pill.hidden=k==='start';pill.classList.toggle('up',role==='tenant'||role==='tech');
  root.querySelectorAll('a[href]').forEach(function(a){var h=a.getAttribute('href');if(h.charAt(0)==='#')return;var t=keyFor(h);if(t){a.setAttribute('href','#'+t)}else{a.setAttribute('data-off',h.indexOf('/api/')===0?'dl':'1');a.setAttribute('href','#'+k)}});
  root.querySelectorAll('form').forEach(function(f){f.addEventListener('submit',function(e){e.preventDefault();toast(OFF)})});

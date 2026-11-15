@@ -9,7 +9,7 @@ export const config = {
     database: process.env.DB_NAME || 'repms',
     ssl: process.env.DB_SSL === 'true',
   },
-  brandName: process.env.BRAND_NAME || 'Hamdan Real Estate',
+  brandName: process.env.BRAND_NAME || 'Hamdan Properties',
   jwtSecret: process.env.JWT_SECRET || 'change-me-in-production',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '12h',
   corsOrigin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(','),

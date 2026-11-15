@@ -113,7 +113,7 @@ pro-rating, year to date, building split, board pack). Seed with `SEED_DEMO=true
 
 ### Company name (branding)
 
-The group runs the system as **Hamdan Real Estate**. The name appears on the login page, menu, receipts, the installed
+The group runs the system as **Hamdan Properties**. The name appears on the login page, menu, receipts, the installed
 app and Excel file names. It is set in `.env` (`BRAND_NAME`, `BRAND_SHORT`, `BRAND_TAGLINE`) and fixed into the web
 build, so for a future sale or another customer change those three lines and rebuild (`docker compose up -d --build`).
 
